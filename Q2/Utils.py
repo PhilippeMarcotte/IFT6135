@@ -1,10 +1,11 @@
 import torch
 
 
-def save_model(model, epoch, trainingLosses, trainingAccuracies, validationLosses, validationAccuracies):
+def save_model(model, optimizer, epoch, trainingLosses, trainingAccuracies, validationLosses, validationAccuracies):
     torch.save({
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
         'trainingLosses': trainingLosses,
         'trainingAccuracies': trainingAccuracies,
         'validationLosses': validationLosses,
