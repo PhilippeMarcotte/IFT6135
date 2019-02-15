@@ -26,11 +26,15 @@ validationAccuracies = []
 model = CNN()
 optimizer = optim.SGD(model.parameters(), lr=0.1)
 
+total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+print("Total number of trainable parameters: ", total_params)
+
 for i in range(10):
     print("\n\n--------- staring iteration: ", i)
 
     trainLoss, trainAcc = train(model, train_loader, optimizer)
-    validLoss, validAcc = validate(model, train_loader)
+    validLoss, validAcc = validate(model, valid_loader)
 
     trainingLosses.append(trainLoss)
     trainingAccuracies.append(trainAcc)
@@ -45,7 +49,14 @@ for i in range(10):
     print("validation accuracy", validAcc)
 
     print("\nsaving checkpoint ")
-    save_model(model, i, trainingLosses, trainingAccuracies, validationLosses, validationAccuracies)
+    save_model(model, optimizer, i, trainingLosses, trainingAccuracies, validationLosses, validationAccuracies)
+
+"""checkpoint = load_model()
+
+trainingLosses = checkpoint["trainingLosses"]
+trainingAccuracies = checkpoint["trainingAccuracies"]
+validationLosses = checkpoint["validationLosses"]
+validationAccuracies = checkpoint["validationAccuracies"]"""
 
 x = np.linspace(0, 10, 10)
 

@@ -30,13 +30,13 @@ def validate(model, valid_loader):
 
             output = model(images)
 
-            predictedClasses = torch.argmax(output, dim=1)
-            totalNumberItems += targets.size(0)
-            correctPredictions += predictedClasses.eq(targets.data).cpu().sum().item()
-
             loss = nn.CrossEntropyLoss()
             loss = loss(output, targets).to(device)
             losses.append(loss.item())
+
+            predictedClasses = torch.argmax(output, 1)
+            totalNumberItems += targets.size(0)
+            correctPredictions += predictedClasses.eq(targets.data).cpu().sum().item()
 
     print("validation completed")
 
