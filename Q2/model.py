@@ -23,8 +23,7 @@ class CNN(nn.Module):
 
         self.layer3 = nn.Sequential(
             nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(3, 3)),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2, 2), stride=2)
+            nn.ReLU()
         )
         self.fullyConnected = nn.Linear(256, 10)
 
