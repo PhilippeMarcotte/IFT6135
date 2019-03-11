@@ -412,9 +412,9 @@ def run_epoch(model, data, is_train=False, lr=1.0):
                     if p.grad is not None:
                         p.data.add_(-lr, p.grad.data)
             if step % (epoch_size // 10) == 10:
-                print('step: '+ str(step) + '\t' \
-                    + "loss (sum over all examples' seen this epoch)": '+ str(costs) + '\t' \
-                    + 'speed (wps):' + str(iters * model.batch_size / (time.time() - start_time)))
+                print("step: {}\t"
+                      "loss (sum over all examples' seen this epoch): {}\t"
+                      "speed (wps): {}".format(step, costs, iters * model.batch_size / (time.time() - start_time)))
     return np.exp(costs / iters), losses
 
 
