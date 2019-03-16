@@ -155,6 +155,8 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     return samples
 
 
+
+
 # Problem 2
 class GRU(nn.Module): # Implement a stacked GRU RNN
   """
@@ -162,9 +164,37 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
   GRU, not Vanilla RNN.
   """
   def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
-    super(GRU, self).__init__()
+      """
+          emb_size:     The number of units in the input embeddings
+          hidden_size:  The number of hidden units per layer
+          seq_len:      The length of the input sequences
+          vocab_size:   The number of tokens in the vocabulary (10,000 for Penn TreeBank)
+          num_layers:   The depth of the stack (i.e. the number of hidden layers at
+                        each time-step)
+          dp_keep_prob: The probability of *not* dropping out units in the
+                        non-recurrent connections.
+                        Do not apply dropout on recurrent connections.
+          """
+      super(GRU, self).__init__()
 
-    # TODO ========================
+      # TODO ========================
+      # Initialization of the parameters of the recurrent and fc layers.
+      # Your implementation should support any number of stacked hidden layers
+      # (specified by num_layers), use an input embedding layer, and include fully
+      # connected layers with dropout after each recurrent layer.
+      # Note: you may use pytorch's nn.Linear, nn.Dropout, and nn.Embedding
+      # modules, but not recurrent modules.
+      #
+      # To create a variable number of parameter tensors and/or nn.Modules
+      # (for the stacked hidden layer), you may need to use nn.ModuleList or the
+      # provided clones function (as opposed to a regular python list), in order
+      # for Pytorch to recognize these parameters as belonging to this nn.Module
+      # and compute their gradients automatically. You're not obligated to use the
+      # provided clones function.
+
+      self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=emb_size)
+      self.fcs = clones(nn.Linear(hidden_size, hidden_size), num_layers)
+      self.dropout = nn.Dropout(1-dp_keep_prob)
 
   def init_weights_uniform(self):
     # TODO ========================
