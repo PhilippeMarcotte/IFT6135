@@ -1,11 +1,12 @@
-import torch 
-import torch.nn as nn
+import copy
+import math
 
 import numpy as np
+import torch
+import torch.nn as nn
 import torch.nn.functional as F
-import math, copy, time
 from torch.autograd import Variable
-import matplotlib.pyplot as plt
+
 
 # NOTE ==============================================
 #
@@ -27,7 +28,6 @@ import matplotlib.pyplot as plt
 # You should not modify the interals of the Transformer
 # except where indicated to implement the multi-head
 # attention.
-from torch.nn import Parameter
 
 
 def clones(module, N):
