@@ -85,10 +85,10 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         self.embedding = nn.Embedding(vocab_size, emb_size)
 
         self.stacked_layers = nn.ModuleList()
-        self.stacked_layers.append(Hidden_unit(emb_size, hidden_size, dp_keep_prob))
+        self.stacked_layers.append(RecurrentUnit(emb_size, hidden_size, dp_keep_prob))
         for i in range(num_layers - 1):
             self.stacked_layers.append(
-                Hidden_unit(hidden_size, hidden_size, dp_keep_prob)
+                RecurrentUnit(hidden_size, hidden_size, dp_keep_prob)
             )
 
         self.fully_connected = nn.Sequential(
@@ -214,16 +214,15 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         return samples
 
 
-class Hidden_unit(nn.Module):
+class RecurrentUnit(nn.Module):
     def __init__(self, in_size, hidden_size, dp_keep_prob):
-        super(Hidden_unit, self).__init__()
+        super(RecurrentUnit, self).__init__()
         self.affine_x = nn.Linear(in_size, hidden_size, bias=False)
         self.affine_h = nn.Linear(hidden_size, hidden_size)
         self.dropout = nn.Dropout(1 - dp_keep_prob)
         self.tanh = nn.Tanh()
 
     def forward(self, input, hidden):
-        # TODO: should I have a non linearity here? tanh????
         return self.tanh(self.affine_x(self.dropout(input)) + self.affine_h(hidden))
 
     def uniform_init_weights(self, lower_bound, upper_bound):
