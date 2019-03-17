@@ -176,7 +176,6 @@ class GRUCell(nn.Module):
         # self.Uh = nn.Parameter(torch.zeros((hidden_size, hidden_size)))
 
         self.Ws = clones(nn.Linear(input_size, hidden_size), 3)
-        self.Ws.append(nn.Linear(hidden_size, hidden_size))
 
         self.Us = clones(nn.Linear(hidden_size, hidden_size, bias=False), 3)
 
@@ -197,7 +196,7 @@ class GRUCell(nn.Module):
         z = self.sigmoid(self.Ws[1](input) + self.Us[1](hidden))
         h_tilde = self.tanh(self.Ws[2](input) + self.Us[2](r * hidden))
         h = (1 - z) * hidden + z * h_tilde
-        return self.sigmoid(self.Ws[3](h))
+        return h
 
 
 
@@ -210,16 +209,16 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
   """
   def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
       """
-          emb_size:     The number of units in the input embeddings
-          hidden_size:  The number of hidden units per layer
-          seq_len:      The length of the input sequences
-          vocab_size:   The number of tokens in the vocabulary (10,000 for Penn TreeBank)
-          num_layers:   The depth of the stack (i.e. the number of hidden layers at
-                        each time-step)
-          dp_keep_prob: The probability of *not* dropping out units in the
-                        non-recurrent connections.
-                        Do not apply dropout on recurrent connections.
-          """
+      emb_size:     The number of units in the input embeddings
+      hidden_size:  The number of hidden units per layer
+      seq_len:      The length of the input sequences
+      vocab_size:   The number of tokens in the vocabulary (10,000 for Penn TreeBank)
+      num_layers:   The depth of the stack (i.e. the number of hidden layers at
+                    each time-step)
+      dp_keep_prob: The probability of *not* dropping out units in the
+                    non-recurrent connections.
+                    Do not apply dropout on recurrent connections.
+      """
       super(GRU, self).__init__()
       # TODO ========================
       # Initialization of the parameters of the recurrent and fc layers.
@@ -235,11 +234,19 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
       # for Pytorch to recognize these parameters as belonging to this nn.Module
       # and compute their gradients automatically. You're not obligated to use the
       # provided clones function.
+      self.emb_size = emb_size
+      self.hiddden_size = hidden_size
+      self.seq_len = seq_len
+      self.batch_size = batch_size
+      self.vocab_size = vocab_size
+      self.num_layers = num_layers
+      self.dp_keep_prob = dp_keep_prob
+
       self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=emb_size)
 
-      self.fcs = clones(nn.Linear(hidden_size, hidden_size), num_layers - 1)
-      self.fcs.append(nn.Linear(hidden_size, vocab_size))
-
+      # self.fcs = clones(nn.Linear(hidden_size, hidden_size), num_layers - 1)
+      # self.fcs.append(nn.Linear(hidden_size, vocab_size))
+      self.fc = nn.Linear(hidden_size, vocab_size)
       self.gru_cells = nn.ModuleList([GRUCell(emb_size, hidden_size)])
       self.gru_cells.extend(clones(GRUCell(hidden_size, hidden_size), num_layers - 1))
 
@@ -247,14 +254,24 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
   def init_weights_uniform(self):
     # TODO ========================
+    nn.init.uniform_(self.embedding.weight, -0.1, 0.1)
+    nn.init.uniform_(self.fully_connected[1].weight, -0.1, 0.1)
 
   def init_hidden(self):
     # TODO ========================
-    return # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
+    return torch.zeros((self.num_layers, self.batch_size, self.hidden_size))
 
   def forward(self, inputs, hidden):
     # TODO ========================
-    return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
+    logits = torch.zeros((self.seq_len, self.batch_size, self.vocab_size))
+    for time_step in range(self.seq_len):
+        x = self.dropout(self.embedding(inputs[time_step]))
+        for layer, gru_cell in enumerate(self.gru_cells):
+            x = self.dropout(gru_cell(x, hidden[layer]))
+            hidden[layer] = x
+        logits[time_step] = self.fc(x)
+
+    return logits, hidden
 
   def generate(self, input, hidden, generated_seq_len):
     # TODO ========================
