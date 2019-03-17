@@ -78,8 +78,9 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     # TODO ========================
     # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
     # and output biases to 0 (in place). The embeddings should not use a bias vector.
-    # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly 
+    # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly
     # in the range [-k, k] where k is the square root of 1/hidden_size
+    raise NotImplementedError
 
   def init_hidden(self):
     # TODO ========================
@@ -87,7 +88,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     """
     This is used for the first mini-batch in an epoch, only.
     """
-    return # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
+    return 0# a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
 
   def forward(self, inputs, hidden):
     # TODO ========================
@@ -187,9 +188,9 @@ class GRUCell(nn.Module):
     def reset_parameters(self):
         bound = 1/np.sqrt(self.hidden_size)
         for W, U in zip(self.Ws, self.Us):
-            W.weight.uniform_(-bound, bound)
-            W.bias.uniform_(-bound, bound)
-            U.weight.uniform_(-bound, bound)
+            nn.init.uniform_(W.weight, -bound, bound)
+            nn.init.uniform_(W.bias, -bound, bound)
+            nn.init.uniform_(U.weight, -bound, bound)
 
     def forward(self, input, hidden):
         r = self.sigmoid(self.Ws[0](input) + self.Us[0](hidden))
@@ -235,7 +236,7 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
       # and compute their gradients automatically. You're not obligated to use the
       # provided clones function.
       self.emb_size = emb_size
-      self.hiddden_size = hidden_size
+      self.hidden_size = hidden_size
       self.seq_len = seq_len
       self.batch_size = batch_size
       self.vocab_size = vocab_size
@@ -250,7 +251,7 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
       self.gru_cells = nn.ModuleList([GRUCell(emb_size, hidden_size)])
       self.gru_cells.extend(clones(GRUCell(hidden_size, hidden_size), num_layers - 1))
 
-      self.dropout = nn.Dropout(1-dp_keep_prob)
+      self.dropout = nn.Dropout(1 - dp_keep_prob)
 
   def init_weights_uniform(self):
     # TODO ========================
@@ -267,8 +268,8 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     for time_step in range(self.seq_len):
         x = self.dropout(self.embedding(inputs[time_step]))
         for layer, gru_cell in enumerate(self.gru_cells):
-            x = self.dropout(gru_cell(x, hidden[layer]))
-            hidden[layer] = x
+            x = self.dropout(gru_cell(x, hidden[layer].clone()))
+            hidden[layer] = x.clone()
         logits[time_step] = self.fc(x)
 
     return logits, hidden
