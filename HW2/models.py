@@ -176,9 +176,9 @@ class GRUCell(nn.Module):
         # self.Uz = nn.Parameter(torch.zeros((hidden_size, hidden_size)))
         # self.Uh = nn.Parameter(torch.zeros((hidden_size, hidden_size)))
 
-        self.Ws = clones(nn.Linear(input_size, hidden_size), 3)
+        self.Ws = nn.Linear(input_size, 3*hidden_size)
 
-        self.Us = clones(nn.Linear(hidden_size, hidden_size, bias=False), 3)
+        self.Us = nn.Linear(hidden_size, 3*hidden_size, bias=False)
 
         self.sigmoid = nn.Sigmoid()
         self.tanh = nn.Tanh()
@@ -187,16 +187,26 @@ class GRUCell(nn.Module):
 
     def reset_parameters(self):
         bound = 1/np.sqrt(self.hidden_size)
-        for W, U in zip(self.Ws, self.Us):
-            nn.init.uniform_(W.weight, -bound, bound)
-            nn.init.uniform_(W.bias, -bound, bound)
-            nn.init.uniform_(U.weight, -bound, bound)
+        nn.init.uniform_(self.Ws.weight, -bound, bound)
+        nn.init.uniform_(self.Ws.bias, -bound, bound)
+        nn.init.uniform_(self.Us.weight, -bound, bound)
 
     def forward(self, input, hidden):
-        r = self.sigmoid(self.Ws[0](input) + self.Us[0](hidden))
-        z = self.sigmoid(self.Ws[1](input) + self.Us[1](hidden))
-        h_tilde = self.tanh(self.Ws[2](input) + self.Us[2](r * hidden))
-        h = (1 - z) * hidden + z * h_tilde
+        gate_x = self.Ws(input)
+        gate_h = self.Us(hidden)
+
+        i_r, i_i, i_n = gate_x.chunk(3, 1)
+        h_r, h_i, h_n = gate_h.chunk(3, 1)
+
+        resetgate = self.sigmoid(i_r + h_r)
+        inputgate = self.sigmoid(i_i + h_i)
+        newgate = self.tanh(i_n + (resetgate * h_n))
+
+        h = newgate + inputgate * (hidden - newgate)
+        # r = self.sigmoid(self.Ws[0](input) + self.Us[0](hidden))
+        # z = self.sigmoid(self.Ws[1](input) + self.Us[1](hidden))
+        # h_tilde = self.tanh(self.Ws[2](input) + self.Us[2](r * hidden))
+        # h = (1 - z) * hidden + z * h_tilde
         return h
 
 
@@ -267,10 +277,13 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     logits = []
     for time_step in range(self.seq_len):
         x = self.dropout(self.embedding(inputs[time_step]))
-        for layer, gru_cell in enumerate(self.gru_cells):
-            x = self.dropout(gru_cell(x, hidden[layer].clone()))
-            hidden[layer] = x.clone()
+        hiddens_layer = hidden.chunk(self.num_layers)
+        new_hidden = []
+        for layer, (gru_cell, hidden_layer) in enumerate(zip(self.gru_cells, hiddens_layer)):
+            x = self.dropout(gru_cell(x, hidden_layer.squeeze()))
+            new_hidden.append(x)
         logits.append(self.fc(x))
+        hidden = torch.cat(new_hidden)
 
     return torch.cat(logits), hidden
 
