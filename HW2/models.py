@@ -264,15 +264,15 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
   def forward(self, inputs, hidden):
     # TODO ========================
-    logits = torch.zeros((self.seq_len, self.batch_size, self.vocab_size))
+    logits = []
     for time_step in range(self.seq_len):
         x = self.dropout(self.embedding(inputs[time_step]))
         for layer, gru_cell in enumerate(self.gru_cells):
             x = self.dropout(gru_cell(x, hidden[layer].clone()))
             hidden[layer] = x.clone()
-        logits[time_step] = self.fc(x)
+        logits.append(self.fc(x))
 
-    return logits, hidden
+    return torch.cat(logits), hidden
 
   def generate(self, input, hidden, generated_seq_len):
     # TODO ========================
