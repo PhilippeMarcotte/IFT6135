@@ -184,7 +184,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
             x = layer(x, hidden[j])
             next_hidden[j] = x
         y = self.fully_connected(x)
-        return y, torch.stack(next_hidden)
+        return y, next_hidden
 
     def generate(self, input, hidden, generated_seq_len):
         # TODO ========================
