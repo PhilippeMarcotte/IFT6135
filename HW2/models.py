@@ -234,7 +234,7 @@ class RecurrentUnit(nn.Module):
 # Problem 2
 class GRU(nn.Module): # Implement a stacked GRU RNN
   """
-  Follow the same instructions as for RNN (above), but use the equations for 
+  Follow the same instructions as for RNN (above), but use the equations for
   GRU, not Vanilla RNN.
   """
   def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
@@ -330,16 +330,37 @@ class MultiHeadedAttention(nn.Module):
         super(MultiHeadedAttention, self).__init__()
         # This sets the size of the keys, values, and queries (self.d_k) to all 
         # be equal to the number of output units divided by the number of heads.
+        self.n_units = n_units
+        self.heads = n_heads
+        self.d_k = self.n_units // self.heads
         self.d_k = n_units // n_heads
         # This requires the number of n_heads to evenly divide n_units.
         assert n_units % n_heads == 0
-        self.n_units = n_units 
 
         # TODO: create/initialize any necessary parameters or layers
         # Initialize all weights and biases uniformly in the range [-k, k],
         # where k is the square root of 1/n_units.
         # Note: the only Pytorch modules you are allowed to use are nn.Linear 
         # and nn.Dropout
+
+        self.q_linear = nn.Linear(self.n_units, self.n_units)
+        self.v_linear = nn.Linear(self.n_units, self.n_units)
+        self.k_linear = nn.Linear(self.n_units, self.n_units)
+        self.dropout = nn.Dropout(dropout)
+        self.out = nn.Linear(self.n_units, self.n_units)
+
+        # Initializing
+        self.k = np.sqrt(1 / n_units)
+
+        nn.init.uniform_(self.q_linear.weight, -self.k, self.k)
+        nn.init.uniform_(self.v_linear.weight, -self.k, self.k)
+        nn.init.uniform_(self.k_linear.weight, -self.k, self.k)
+        nn.init.uniform_(self.out.weight, -self.k, self.k)
+
+        nn.init.uniform_(self.q_linear.bias, -self.k, self.k)
+        nn.init.uniform_(self.v_linear.bias, -self.k, self.k)
+        nn.init.uniform_(self.k_linear.bias, -self.k, self.k)
+        nn.init.uniform_(self.out.bias, -self.k, self.k)
         
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
@@ -349,7 +370,42 @@ class MultiHeadedAttention(nn.Module):
         # generating the "attention values" (i.e. A_i in the .tex)
         # Also apply dropout to the attention values.
 
-        return # size: (batch_size, seq_len, self.n_units)
+        batch_size = query.size(0)
+
+        # linear transformation and splitting into h heads
+        k = self.k_linear(key).view(batch_size, -1, self.heads, self.d_k)
+        q = self.q_linear(query).view(batch_size, -1, self.heads, self.d_k)
+        v = self.v_linear(value).view(batch_size, -1, self.heads, self.d_k)
+
+        # Rearrange shape to [batch_size, heads, sequence_length, d_k]
+        k = k.transpose(1, 2)
+        q = q.transpose(1, 2)
+        v = v.transpose(1, 2)
+
+        ####### Attention calculation #######
+        # Scaled dot product calculation
+        attention_span = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.d_k)
+
+        # Apply mask if Mask is not None
+        if mask is not None:
+            mask = mask.unsqueeze(1)   #Create another dimension to fit the mask
+            mask = mask.repeat(1, attention_span.size(1), 1, 1)     #Repeat the mask along that new dimension
+            attention_span[mask == 0] = -1e9        #Replace zeros in the attention_span with -1e9
+
+        attention_span = F.softmax(attention_span, dim=-1)
+
+        # Apply dropout
+        attention_span = self.dropout(attention_span)
+
+        # Attention
+        attention = torch.matmul(attention_span, v)
+
+        # Concatenate back all the heads
+        concatenated = attention.transpose(1, 2).contiguous().view(batch_size, -1, self.n_units)
+
+        # Output through final layer
+        output = self.out(concatenated)
+        return output # size: (batch_size, seq_len, self.n_units)
 
 
 
