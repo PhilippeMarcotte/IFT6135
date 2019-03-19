@@ -306,8 +306,6 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
       self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=emb_size)
 
-      # self.fcs = clones(nn.Linear(hidden_size, hidden_size), num_layers - 1)
-      # self.fcs.append(nn.Linear(hidden_size, vocab_size))
       self.fc = nn.Linear(hidden_size, vocab_size)
       self.gru_cells = nn.ModuleList([GRUCell(emb_size, hidden_size)])
       self.gru_cells.extend(clones(GRUCell(hidden_size, hidden_size), num_layers - 1))
