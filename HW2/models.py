@@ -1,10 +1,9 @@
-import copy
-import math
-
-import numpy as np
 import torch
 import torch.nn as nn
+
+import numpy as np
 import torch.nn.functional as F
+import math, copy
 from torch.autograd import Variable
 
 
@@ -231,6 +230,38 @@ class RecurrentUnit(nn.Module):
         nn.init.uniform_(self.affine_h.weight, -lower_bound, upper_bound)
         nn.init.uniform_(self.affine_h.bias, -lower_bound, upper_bound)
 
+class GRUCell(nn.Module):
+    def __init__(self, input_size, hidden_size):
+        super(GRUCell, self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+
+        self.W = nn.Parameter(torch.zeros((input_size, 3 * hidden_size)))
+        self.U = nn.Parameter(torch.zeros((hidden_size, 3 * hidden_size)))
+        self.b = nn.Parameter(torch.zeros((3 * hidden_size)))
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        bound = 1/np.sqrt(self.hidden_size)
+        nn.init.uniform_(self.W, -bound, bound)
+        nn.init.uniform_(self.U, -bound, bound)
+        nn.init.uniform_(self.b, -bound, bound)
+
+    def forward(self, input, hidden):
+        gate_x = torch.matmul(input, self.W).add(self.b)
+        gate_h = torch.matmul(hidden, self.U) + self.b
+
+        i_r, i_i, i_n = gate_x.chunk(3, 1)
+        h_r, h_i, h_n = gate_h.chunk(3, 1)
+
+        resetgate = torch.sigmoid(i_r + h_r)
+        inputgate = torch.sigmoid(i_i + h_i)
+        newgate = torch.tanh(i_n + (resetgate * h_n))
+
+        h = newgate + inputgate * (hidden - newgate)
+        return h
+
 
 # Problem 2
 class GRU(nn.Module): # Implement a stacked GRU RNN
@@ -239,24 +270,91 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
   GRU, not Vanilla RNN.
   """
   def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
-    super(GRU, self).__init__()
+      """
+      emb_size:     The number of units in the input embeddings
+      hidden_size:  The number of hidden units per layer
+      seq_len:      The length of the input sequences
+      vocab_size:   The number of tokens in the vocabulary (10,000 for Penn TreeBank)
+      num_layers:   The depth of the stack (i.e. the number of hidden layers at
+                    each time-step)
+      dp_keep_prob: The probability of *not* dropping out units in the
+                    non-recurrent connections.
+                    Do not apply dropout on recurrent connections.
+      """
+      super(GRU, self).__init__()
+      # TODO ========================
+      # Initialization of the parameters of the recurrent and fc layers.
+      # Your implementation should support any number of stacked hidden layers
+      # (specified by num_layers), use an input embedding layer, and include fully
+      # connected layers with dropout after each recurrent layer.
+      # Note: you may use pytorch's nn.Linear, nn.Dropout, and nn.Embedding
+      # modules, but not recurrent modules.
+      #
+      # To create a variable number of parameter tensors and/or nn.Modules
+      # (for the stacked hidden layer), you may need to use nn.ModuleList or the
+      # provided clones function (as opposed to a regular python list), in order
+      # for Pytorch to recognize these parameters as belonging to this nn.Module
+      # and compute their gradients automatically. You're not obligated to use the
+      # provided clones function.
+      self.emb_size = emb_size
+      self.hidden_size = hidden_size
+      self.seq_len = seq_len
+      self.batch_size = batch_size
+      self.vocab_size = vocab_size
+      self.num_layers = num_layers
+      self.dp_keep_prob = dp_keep_prob
 
-    # TODO ========================
+      self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=emb_size)
+
+      self.gru_cells = nn.ModuleList([GRUCell(emb_size, hidden_size)])
+      self.gru_cells.extend(clones(GRUCell(hidden_size, hidden_size), num_layers - 1))
+      self.fc = nn.Linear(hidden_size, vocab_size)
+
+      self.dropout = nn.Dropout(1 - dp_keep_prob)
+
+      self.init_weights_uniform()
 
   def init_weights_uniform(self):
     # TODO ========================
+    nn.init.uniform_(self.embedding.weight, -0.1, 0.1)
+    nn.init.uniform_(self.fc.weight, -0.1, 0.1)
+    nn.init.constant_(self.fc.bias, 0)
 
   def init_hidden(self):
     # TODO ========================
-    return # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
+    return torch.zeros((self.num_layers, self.batch_size, self.hidden_size))
 
   def forward(self, inputs, hidden):
     # TODO ========================
+    logits = []
+    for i in range(self.seq_len):
+        tokens = inputs[i]
+        y, hidden = self.forward_token(tokens, hidden)
+
+        logits.append(y)
+
+    logits = torch.stack(logits)
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
+
+  def forward_token(self, tokens, hidden):
+      next_hidden = []
+      x = self.embedding(tokens)
+      for j, layer in enumerate(self.gru_cells):
+          x = layer(x, hidden[j])
+          next_hidden.append(x)
+      y = self.fc(x)
+      return y, torch.stack(next_hidden)
 
   def generate(self, input, hidden, generated_seq_len):
     # TODO ========================
-    return samples
+    softmax = nn.Softmax()
+    samples = []
+    for i in range(generated_seq_len):
+        y, hidden = self.forward_token(input, hidden)
+        next_input = torch.argmax(softmax(y), dim=1)
+        samples.append(next_input)
+
+    return torch.stack(samples)
 
 
 # Problem 3
@@ -362,7 +460,7 @@ class MultiHeadedAttention(nn.Module):
         nn.init.uniform_(self.v_linear.bias, -self.k, self.k)
         nn.init.uniform_(self.k_linear.bias, -self.k, self.k)
         nn.init.uniform_(self.out.bias, -self.k, self.k)
-        
+
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
         # query, key, and value all have size: (batch_size, seq_len, self.n_units)
