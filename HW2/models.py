@@ -160,22 +160,24 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
                         shape: (num_layers, batch_size, hidden_size)
         """
 
-        logits = torch.zeros((self.seq_len, self.batch_size, self.vocab_size))
+        logits = []
         for i in range(self.seq_len):
             tokens = inputs[i]
             y, hidden = self.forward_token(tokens, hidden)
 
-            logits[i] = y
+            logits.append(y)
 
+        logits = torch.stack(logits)
         return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
     def forward_token(self, tokens, hidden):
+        next_hidden = []
         x = self.embedding(tokens)
         for j, layer in enumerate(self.stacked_layers):
             x = layer(x, hidden[j])
-            hidden[j] = x
+            next_hidden.append(x)
         y = self.fully_connected(x)
-        return y, hidden
+        return y, torch.stack(next_hidden)
 
     def generate(self, input, hidden, generated_seq_len):
         # TODO ========================
@@ -204,14 +206,13 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         """
 
         softmax = nn.Softmax()
-
-        samples = torch.zeros((generated_seq_len, self.batch_size))
+        samples = []
         for i in range(generated_seq_len):
             y, hidden = self.forward_token(input, hidden)
-            input = torch.argmax(softmax(y), dim=1)
-            samples[i] = input
+            next_input = torch.argmax(softmax(y), dim=1)
+            samples.append(next_input)
 
-        return samples
+        return torch.stack(samples)
 
 
 class RecurrentUnit(nn.Module):
