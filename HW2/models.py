@@ -178,11 +178,11 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
     def forward_token(self, tokens, hidden):
-        next_hidden = []
+        next_hidden = hidden.clone()
         x = self.embedding(tokens)
         for j, layer in enumerate(self.stacked_layers):
             x = layer(x, hidden[j])
-            next_hidden.append(x)
+            next_hidden[j] = x
         y = self.fully_connected(x)
         return y, torch.stack(next_hidden)
 
