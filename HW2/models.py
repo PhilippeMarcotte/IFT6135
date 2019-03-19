@@ -306,9 +306,9 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
       self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=emb_size)
 
-      self.fc = nn.Linear(hidden_size, vocab_size)
       self.gru_cells = nn.ModuleList([GRUCell(emb_size, hidden_size)])
       self.gru_cells.extend(clones(GRUCell(hidden_size, hidden_size), num_layers - 1))
+      self.fc = nn.Linear(hidden_size, vocab_size)
 
       self.dropout = nn.Dropout(1 - dp_keep_prob)
 
@@ -327,20 +327,34 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
   def forward(self, inputs, hidden):
     # TODO ========================
     logits = []
-    for time_step in range(self.seq_len):
-        x = self.dropout(self.embedding(inputs[time_step]))
-        new_hidden = []
-        for layer, gru_cell in enumerate(self.gru_cells):
-            x = self.dropout(gru_cell(x, hidden[layer]))
-            new_hidden.append(x)
-        logits.append(self.fc(x))
-        hidden = torch.stack(new_hidden)
+    for i in range(self.seq_len):
+        tokens = inputs[i]
+        y, hidden = self.forward_token(tokens, hidden)
 
-    return torch.stack(logits), hidden
+        logits.append(y)
+
+    logits = torch.stack(logits)
+    return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
+
+  def forward_token(self, tokens, hidden):
+      next_hidden = []
+      x = self.embedding(tokens)
+      for j, layer in enumerate(self.gru_cells):
+          x = layer(x, hidden[j])
+          next_hidden.append(x)
+      y = self.fc(x)
+      return y, torch.stack(next_hidden)
 
   def generate(self, input, hidden, generated_seq_len):
     # TODO ========================
-    return samples
+    softmax = nn.Softmax()
+    samples = []
+    for i in range(generated_seq_len):
+        y, hidden = self.forward_token(input, hidden)
+        next_input = torch.argmax(softmax(y), dim=1)
+        samples.append(next_input)
+
+    return torch.stack(samples)
 
 
 # Problem 3
