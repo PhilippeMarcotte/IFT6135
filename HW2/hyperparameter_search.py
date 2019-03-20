@@ -3,7 +3,6 @@ from skopt import Optimizer
 from skopt.utils import Real
 from models import RNN, GRU, rnn_hp_space, transformer_hp_space
 from models import make_model as TRANSFORMER
-ptblm = __import__("ptb-lm")
 import sys
 import os
 import torch
@@ -12,6 +11,8 @@ import pickle
 from datetime import datetime
 import time
 import numpy as np
+from torch.autograd import Variable
+import collections
 
 hyperparameters_space = [
     Real(10 ** -5, 10 ** -3, "log-uniform", name='optimizer.lr')
@@ -24,6 +25,8 @@ def save_optimizer(optimizer, path):
     :param optimizer: the hyperparameters optimizer to save.
     :param path: where to save.
     """
+    path = os.path.join(path, "optimizer.pkl")
+    print("Saving the hyperparameters optimizer to {}".format(path))
     with open(path, 'wb+') as f:
         pickle.dump(optimizer, f)
 
@@ -50,6 +53,106 @@ def hyperparameters_parsing(hyperparameters, hp_space, args):
         key = hp_space[i].name
         args[key] = hp_value
 
+
+# HELPER FUNCTIONS
+def _read_words(filename):
+    with open(filename, "r") as f:
+        return f.read().replace("\n", "<eos>").split()
+
+
+def _build_vocab(filename):
+    data = _read_words(filename)
+
+    counter = collections.Counter(data)
+    count_pairs = sorted(counter.items(), key=lambda x: (-x[1], x[0]))
+
+    words, _ = list(zip(*count_pairs))
+    word_to_id = dict(zip(words, range(len(words))))
+    id_to_word = dict((v, k) for k, v in word_to_id.items())
+
+    return word_to_id, id_to_word
+
+
+def _file_to_word_ids(filename, word_to_id):
+    data = _read_words(filename)
+    return [word_to_id[word] for word in data if word in word_to_id]
+
+
+# Processes the raw data from text files
+def ptb_raw_data(data_path=None, prefix="ptb"):
+    train_path = os.path.join(data_path, prefix + ".train.txt")
+    valid_path = os.path.join(data_path, prefix + ".valid.txt")
+    test_path = os.path.join(data_path, prefix + ".test.txt")
+
+    word_to_id, id_2_word = _build_vocab(train_path)
+    train_data = _file_to_word_ids(train_path, word_to_id)
+    valid_data = _file_to_word_ids(valid_path, word_to_id)
+    test_data = _file_to_word_ids(test_path, word_to_id)
+    return train_data, valid_data, test_data, word_to_id, id_2_word
+
+
+# Yields minibatches of data
+def ptb_iterator(raw_data, batch_size, num_steps):
+    raw_data = np.array(raw_data, dtype=np.int32)
+
+    data_len = len(raw_data)
+    batch_len = data_len // batch_size
+    data = np.zeros([batch_size, batch_len], dtype=np.int32)
+    for i in range(batch_size):
+        data[i] = raw_data[batch_len * i:batch_len * (i + 1)]
+
+    epoch_size = (batch_len - 1) // num_steps
+
+    if epoch_size == 0:
+        raise ValueError("epoch_size == 0, decrease batch_size or num_steps")
+
+    for i in range(epoch_size):
+        x = data[:, i * num_steps:(i + 1) * num_steps]
+        y = data[:, i * num_steps + 1:(i + 1) * num_steps + 1]
+        yield (x, y)
+
+
+class Batch:
+    "Data processing for the transformer. This class adds a mask to the data."
+
+    def __init__(self, x, pad=-1):
+        self.data = x
+        self.mask = self.make_mask(self.data, pad)
+
+    @staticmethod
+    def make_mask(data, pad):
+        "Create a mask to hide future words."
+
+        def subsequent_mask(size):
+            """ helper function for creating the masks. """
+            attn_shape = (1, size, size)
+            subsequent_mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
+            return torch.from_numpy(subsequent_mask) == 0
+
+        mask = (data != pad).unsqueeze(-2)
+        mask = mask & Variable(
+            subsequent_mask(data.size(-1)).type_as(mask.data))
+        return mask
+
+
+def repackage_hidden(h):
+    """
+    Wraps hidden states in new Tensors, to detach them from their history.
+
+    This prevents Pytorch from trying to backpropagate into previous input
+    sequences when we use the final hidden states from one mini-batch as the
+    initial hidden states for the next mini-batch.
+
+    Using the final hidden states in this way makes sense when the elements of
+    the mini-batches are actually successive subsequences in a set of longer sequences.
+    This is the case with the way we've processed the Penn Treebank dataset.
+    """
+    if isinstance(h, Variable):
+        return h.detach_()
+    else:
+        return tuple(repackage_hidden(v) for v in h)
+
+
 def run_epoch(model, data, loss_fn, optimizer, device, args, is_train=False, lr=1.0):
     """
     One epoch of training/validation (depending on flag is_train).
@@ -68,26 +171,26 @@ def run_epoch(model, data, loss_fn, optimizer, device, args, is_train=False, lr=
     losses = []
 
     # LOOP THROUGH MINIBATCHES
-    for step, (x, y) in enumerate(ptblm.ptb_iterator(data, model.batch_size, model.seq_len)):
+    for step, (x, y) in enumerate(ptb_iterator(data, model.batch_size, model.seq_len)):
         if args["model"] == 'TRANSFORMER':
-            batch = ptblm.Batch(torch.from_numpy(x).long().to(device))
+            batch = Batch(torch.from_numpy(x).long().to(device))
             model.zero_grad()
-            outputs = model.forward(batch.data, batch.mask).transpose(1,0)
-            #print ("outputs.shape", outputs.shape)
+            outputs = model.forward(batch.data, batch.mask).transpose(1, 0)
+            # print ("outputs.shape", outputs.shape)
         else:
-            inputs = torch.from_numpy(x.astype(np.int64)).transpose(0, 1).contiguous().to(device)#.cuda()
+            inputs = torch.from_numpy(x.astype(np.int64)).transpose(0, 1).contiguous().to(device)  # .cuda()
             model.zero_grad()
-            hidden = ptblm.repackage_hidden(hidden)
+            hidden = repackage_hidden(hidden)
             outputs, hidden = model(inputs, hidden)
 
-        targets = torch.from_numpy(y.astype(np.int64)).transpose(0, 1).contiguous().to(device)#.cuda()
+        targets = torch.from_numpy(y.astype(np.int64)).transpose(0, 1).contiguous().to(device)  # .cuda()
         tt = torch.squeeze(targets.view(-1, model.batch_size * model.seq_len))
 
         # LOSS COMPUTATION
         # This line currently averages across all the sequences in a mini-batch
         # and all time-steps of the sequences.
         # For problem 5.3, you will (instead) need to compute the average loss
-        #at each time-step separately.
+        # at each time-step separately.
         loss = loss_fn(outputs.contiguous().view(-1, model.vocab_size), tt)
         costs += loss.data.item() * model.seq_len
         losses.append(costs)
@@ -146,19 +249,18 @@ def train(model, args, train_data, valid_data):
     # MAIN LOOP
     for epoch in range(num_epochs):
         t0 = time.time()
-        with open (os.path.join(args["save_dir"], 'log.txt'), 'a') as f_:
-            f_.write(str(t0)+ '\n')
-        print('\nEPOCH '+str(epoch)+' ------------------')
+        with open(os.path.join(args["save_dir"], 'log.txt'), 'a') as f_:
+            f_.write(str(t0) + '\n')
+        print('\nEPOCH ' + str(epoch) + ' ------------------')
         if args["optimizer"] == 'SGD_LR_SCHEDULE':
             lr_decay = lr_decay_base ** max(epoch - m_flat_lr, 0)
-            lr = lr * lr_decay # decay lr if it is time
+            lr = lr * lr_decay  # decay lr if it is time
 
         # RUN MODEL ON TRAINING DATA
         train_ppl, train_loss = run_epoch(model, train_data, loss_fn, optimizer, device, args, True, lr)
 
         # RUN MODEL ON VALIDATION DATA
         val_ppl, val_loss = run_epoch(model, valid_data, loss_fn, optimizer, device, args)
-
 
         # SAVE MODEL IF IT'S THE BEST SO FAR
         if val_ppl < best_val_so_far:
@@ -182,27 +284,28 @@ def train(model, args, train_data, valid_data):
         val_losses.extend(val_loss)
         times.append(time.time() - t0)
         log_str = 'epoch: ' + str(epoch) + '\t' \
-                + 'train ppl: ' + str(train_ppl) + '\t' \
-                + 'val ppl: ' + str(val_ppl)  + '\t' \
-                + 'best val: ' + str(best_val_so_far) + '\t' \
-                + 'time (s) spent in epoch: ' + str(times[-1])
+                  + 'train ppl: ' + str(train_ppl) + '\t' \
+                  + 'val ppl: ' + str(val_ppl) + '\t' \
+                  + 'best val: ' + str(best_val_so_far) + '\t' \
+                  + 'time (s) spent in epoch: ' + str(times[-1])
         print(log_str)
-        with open (os.path.join(args["save_dir"], 'log.txt'), 'a') as f_:
-            f_.write(log_str+ '\n')
+        with open(os.path.join(args["save_dir"], 'log.txt'), 'a') as f_:
+            f_.write(log_str + '\n')
 
     # SAVE LEARNING CURVES
     lc_path = os.path.join(args["save_dir"], 'learning_curves.npy')
-    print('\nDONE\n\nSaving learning curves to '+lc_path)
-    np.save(lc_path, {'train_ppls':train_ppls,
-                      'val_ppls':val_ppls,
-                      'train_losses':train_losses,
-                      'val_losses':val_losses})
+    print('\nDONE\n\nSaving learning curves to ' + lc_path)
+    np.save(lc_path, {'train_ppls': train_ppls,
+                      'val_ppls': val_ppls,
+                      'train_losses': train_losses,
+                      'val_losses': val_losses})
 
     return best_val_so_far
     # NOTE ==============================================
     # To load these, run
     # >>> x = np.load(lc_path)[()]
     # You will need these values for plotting learning curves (Problem 4)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -250,6 +353,8 @@ if __name__ == '__main__':
                         ONCE for each model setting, and only after you've \
                         completed ALL hyperparameter tuning on the validation set.\
                         Note we are not requiring you to do this.")
+    parser.add_argument('-r', '--resume', type='str', default='',
+                        help='path to hyperparameters optimizer checkpoint to resume the search')
 
     # DO NOT CHANGE THIS (setting the random seed makes experiments deterministic,
     # which helps for reproducibility)
@@ -279,7 +384,7 @@ if __name__ == '__main__':
         device = torch.device("cpu")
     # LOAD DATA
     print('Loading data from ' + args["data"])
-    raw_data = ptblm.ptb_raw_data(data_path=args["data"])
+    raw_data = ptb_raw_data(data_path=args["data"])
     train_data, valid_data, test_data, word_to_id, id_2_word = raw_data
     vocab_size = len(word_to_id)
     print('  vocabulary size: {}'.format(vocab_size))
@@ -293,10 +398,12 @@ if __name__ == '__main__':
     else:
         raise ValueError("Model type not recognized.")
 
-    hp_optimizer = Optimizer(hp_space)
+    if args['resume'] is None:
+        hp_optimizer = Optimizer(hp_space)
+    else:
+        hp_optimizer = load_optimizer(args['resume'])
     hp_search_folder = os.path.join(args["save_dir"], datetime.now().strftime('%m%d_%H%M%S'))
-    args["save_dir"] = hp_search_folder
-    for i in range(40):
+    for i in range(len(hp_optimizer.yi), 40):
         # Use the model, optimizer, and the flags passed to the script to make the
         # name for the experimental dir
         hyperparameters = hp_optimizer.ask()
@@ -304,10 +411,10 @@ if __name__ == '__main__':
         print("\n########## Setting Up Experiment ######################")
         flags = [flag.lstrip('--') for flag in sys.argv[1:]]
         experiment_path = os.path.join(
-            args["save_dir"], '_'.join([args['model'],
-                                         args[
-                                             'optimizer']]
-                                        + flags))
+            hp_search_folder, '_'.join([args['model'],
+                                        args[
+                                            'optimizer']]
+                                       + flags))
 
         experiment_path = experiment_path + "_" + str(i)
 
