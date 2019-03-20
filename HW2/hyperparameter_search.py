@@ -1,6 +1,5 @@
 import argparse
 from skopt import Optimizer
-from skopt.utils import Real
 from models import RNN, GRU, rnn_hp_space, transformer_hp_space
 from models import make_model as TRANSFORMER
 import sys
@@ -13,10 +12,6 @@ import time
 import numpy as np
 from torch.autograd import Variable
 import collections
-
-hyperparameters_space = [
-    Real(10 ** -5, 10 ** -3, "log-uniform", name='optimizer.lr')
-]
 
 
 def save_optimizer(optimizer, path):
