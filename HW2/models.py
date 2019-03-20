@@ -238,9 +238,13 @@ class GRUCell(nn.Module):
 
         self.W = nn.Parameter(torch.zeros((input_size, 3 * hidden_size)))
         self.U = nn.Parameter(torch.zeros((hidden_size, 3 * hidden_size)))
-        self.br = nn.Parameter(torch.zeros(hidden_size))
-        self.bz = nn.Parameter(torch.zeros(hidden_size))
-        self.bh_tilde = nn.Parameter(torch.zeros(hidden_size))
+        self.bw = nn.Parameter(torch.zeros(3 * hidden_size))
+        self.bu = nn.Parameter(torch.zeros(3 * hidden_size))
+        # self.bwz = nn.Parameter(torch.zeros(hidden_size))
+        # self.bwh_tilde = nn.Parameter(torch.zeros(hidden_size))
+        # self.bur = nn.Parameter(torch.zeros(hidden_size))
+        # self.buz = nn.Parameter(torch.zeros(hidden_size))
+        # self.buh_tilde = nn.Parameter(torch.zeros(hidden_size))
 
         self.reset_parameters()
 
@@ -248,20 +252,25 @@ class GRUCell(nn.Module):
         bound = 1/np.sqrt(self.hidden_size)
         nn.init.uniform_(self.W, -bound, bound)
         nn.init.uniform_(self.U, -bound, bound)
-        nn.init.uniform_(self.br, -bound, bound)
-        nn.init.uniform_(self.bz, -bound, bound)
-        nn.init.uniform_(self.bh_tilde, -bound, bound)
+        nn.init.uniform_(self.bw, -bound, bound)
+        nn.init.uniform_(self.bu, -bound, bound)
+        # nn.init.uniform_(self.bwr, -bound, bound)
+        # nn.init.uniform_(self.bwz, -bound, bound)
+        # nn.init.uniform_(self.bwh_tilde, -bound, bound)
+        # nn.init.uniform_(self.bur, -bound, bound)
+        # nn.init.uniform_(self.buz, -bound, bound)
+        # nn.init.uniform_(self.buh_tilde, -bound, bound)
 
     def forward(self, input, hidden):
-        gate_x = torch.matmul(input, self.W)
-        gate_h = torch.matmul(hidden, self.U)
+        gate_x = torch.matmul(input, self.W).add(self.bw)
+        gate_h = torch.matmul(hidden, self.U).add(self.bu)
 
         i_r, i_z, i_n = gate_x.chunk(3, 1)
         h_r, h_z, h_n = gate_h.chunk(3, 1)
 
-        r = torch.sigmoid(i_r + h_r + self.br)
-        z = torch.sigmoid(i_z + h_z + self.bz)
-        h_tilde = torch.tanh(i_n + (r * h_n) + self.bh_tilde)
+        r = torch.sigmoid(i_r.add(h_r))
+        z = torch.sigmoid(i_z.add(h_z))
+        h_tilde = torch.tanh(i_n.add((r * h_n)))
 
         h = (1 - z) * hidden + z * h_tilde
         return h
@@ -344,7 +353,7 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
       next_hidden = []
       x = self.embedding(tokens)
       for j, layer in enumerate(self.gru_cells):
-          x = layer(x, hidden[j])
+          x = self.dropout(layer(x, hidden[j]))
           next_hidden.append(x)
       y = self.fc(x)
       return y, torch.stack(next_hidden)
