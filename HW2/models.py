@@ -340,10 +340,11 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
   def forward_token(self, tokens, hidden):
       next_hidden = []
-      x = self.embedding(tokens)
+      x = self.dropout(self.embedding(tokens))
       for j, layer in enumerate(self.gru_cells):
-          x = self.dropout(layer(x, hidden[j]))
+          x = layer(x, hidden[j])
           next_hidden.append(x)
+          x = self.dropout(x)
       y = self.fc(x)
       return y, torch.stack(next_hidden)
 
