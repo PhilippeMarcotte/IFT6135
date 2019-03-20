@@ -100,7 +100,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
         self.fully_connected = nn.Sequential(
             nn.Dropout(1 - dp_keep_prob),
-            nn.Linear(hidden_size, vocab_size, bias=False)
+            nn.Linear(hidden_size, vocab_size)
         )
 
         self.init_weights()
@@ -114,6 +114,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
         nn.init.uniform_(self.embedding.weight, -0.1, 0.1)
         nn.init.uniform_(self.fully_connected[1].weight, -0.1, 0.1)
+        nn.init.constant_(self.fully_connected[1].bias, 0)
 
         k = math.sqrt(1 / self.hidden_size)
 
@@ -225,7 +226,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 class RecurrentUnit(nn.Module):
     def __init__(self, in_size, hidden_size, dp_keep_prob):
         super(RecurrentUnit, self).__init__()
-        self.affine_x = nn.Linear(in_size, hidden_size, bias=False)
+        self.affine_x = nn.Linear(in_size, hidden_size)
         self.affine_h = nn.Linear(hidden_size, hidden_size)
         self.dropout = nn.Dropout(1 - dp_keep_prob)
         self.tanh = nn.Tanh()
