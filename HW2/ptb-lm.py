@@ -442,8 +442,6 @@ else:
 # MAIN LOOP
 for epoch in range(num_epochs):
     t0 = time.time()
-    with open (os.path.join(args.save_dir, 'log.txt'), 'a') as f_:
-        f_.write(str(t0)+ '\n')
     print('\nEPOCH '+str(epoch)+' ------------------')
     if args.optimizer == 'SGD_LR_SCHEDULE':
         lr_decay = lr_decay_base ** max(epoch - m_flat_lr, 0)
@@ -492,7 +490,8 @@ print('\nDONE\n\nSaving learning curves to '+lc_path)
 np.save(lc_path, {'train_ppls':train_ppls, 
                   'val_ppls':val_ppls, 
                   'train_losses':train_losses,
-                  'val_losses':val_losses})
+                  'val_losses':val_losses,
+                  'times': times})
 # NOTE ==============================================
 # To load these, run 
 # >>> x = np.load(lc_path)[()]
