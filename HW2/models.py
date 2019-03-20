@@ -246,7 +246,8 @@ class GRUCell(nn.Module):
 
         self.W = nn.Parameter(torch.zeros((input_size, 3 * hidden_size)))
         self.U = nn.Parameter(torch.zeros((hidden_size, 3 * hidden_size)))
-        self.b = nn.Parameter(torch.zeros((3 * hidden_size)))
+        self.bw = nn.Parameter(torch.zeros(3 * hidden_size))
+        self.bu = nn.Parameter(torch.zeros(3 * hidden_size))
 
         self.reset_parameters()
 
@@ -254,20 +255,21 @@ class GRUCell(nn.Module):
         bound = 1/np.sqrt(self.hidden_size)
         nn.init.uniform_(self.W, -bound, bound)
         nn.init.uniform_(self.U, -bound, bound)
-        nn.init.uniform_(self.b, -bound, bound)
+        nn.init.uniform_(self.bw, -bound, bound)
+        nn.init.uniform_(self.bu, -bound, bound)
 
     def forward(self, input, hidden):
-        gate_x = torch.matmul(input, self.W).add(self.b)
-        gate_h = torch.matmul(hidden, self.U) + self.b
+        gate_x = torch.addmm(self.bw, input, self.W)
+        gate_h = torch.addmm(self.bu, hidden, self.U)
 
-        i_r, i_i, i_n = gate_x.chunk(3, 1)
-        h_r, h_i, h_n = gate_h.chunk(3, 1)
+        i_r, i_z, i_n = gate_x.chunk(3, 1)
+        h_r, h_z, h_n = gate_h.chunk(3, 1)
 
-        resetgate = torch.sigmoid(i_r + h_r)
-        inputgate = torch.sigmoid(i_i + h_i)
-        newgate = torch.tanh(i_n + (resetgate * h_n))
+        r = torch.sigmoid(i_r + h_r)
+        z = torch.sigmoid(i_z + h_z)
+        h_tilde = torch.tanh(i_n + (r * h_n))
 
-        h = newgate + inputgate * (hidden - newgate)
+        h = (1 - z) * hidden + z * h_tilde
         return h
 
 
@@ -346,10 +348,11 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
   def forward_token(self, tokens, hidden):
       next_hidden = []
-      x = self.embedding(tokens)
+      x = self.dropout(self.embedding(tokens))
       for j, layer in enumerate(self.gru_cells):
           x = layer(x, hidden[j])
           next_hidden.append(x)
+          x = self.dropout(x)
       y = self.fc(x)
       return y, torch.stack(next_hidden)
 
