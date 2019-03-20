@@ -240,11 +240,6 @@ class GRUCell(nn.Module):
         self.U = nn.Parameter(torch.zeros((hidden_size, 3 * hidden_size)))
         self.bw = nn.Parameter(torch.zeros(3 * hidden_size))
         self.bu = nn.Parameter(torch.zeros(3 * hidden_size))
-        # self.bwz = nn.Parameter(torch.zeros(hidden_size))
-        # self.bwh_tilde = nn.Parameter(torch.zeros(hidden_size))
-        # self.bur = nn.Parameter(torch.zeros(hidden_size))
-        # self.buz = nn.Parameter(torch.zeros(hidden_size))
-        # self.buh_tilde = nn.Parameter(torch.zeros(hidden_size))
 
         self.reset_parameters()
 
@@ -254,12 +249,6 @@ class GRUCell(nn.Module):
         nn.init.uniform_(self.U, -bound, bound)
         nn.init.uniform_(self.bw, -bound, bound)
         nn.init.uniform_(self.bu, -bound, bound)
-        # nn.init.uniform_(self.bwr, -bound, bound)
-        # nn.init.uniform_(self.bwz, -bound, bound)
-        # nn.init.uniform_(self.bwh_tilde, -bound, bound)
-        # nn.init.uniform_(self.bur, -bound, bound)
-        # nn.init.uniform_(self.buz, -bound, bound)
-        # nn.init.uniform_(self.buh_tilde, -bound, bound)
 
     def forward(self, input, hidden):
         gate_x = torch.matmul(input, self.W).add(self.bw)
