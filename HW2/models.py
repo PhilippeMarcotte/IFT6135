@@ -251,15 +251,15 @@ class GRUCell(nn.Module):
         nn.init.uniform_(self.bu, -bound, bound)
 
     def forward(self, input, hidden):
-        gate_x = torch.matmul(input, self.W).add(self.bw)
-        gate_h = torch.matmul(hidden, self.U).add(self.bu)
+        gate_x = torch.addmm(self.bw, input, self.W)
+        gate_h = torch.addmm(self.bu, hidden, self.U)
 
         i_r, i_z, i_n = gate_x.chunk(3, 1)
         h_r, h_z, h_n = gate_h.chunk(3, 1)
 
-        r = torch.sigmoid(i_r.add(h_r))
-        z = torch.sigmoid(i_z.add(h_z))
-        h_tilde = torch.tanh(i_n.add((r * h_n)))
+        r = torch.sigmoid(i_r + h_r)
+        z = torch.sigmoid(i_z + h_z)
+        h_tilde = torch.tanh(i_n + (r * h_n))
 
         h = (1 - z) * hidden + z * h_tilde
         return h
