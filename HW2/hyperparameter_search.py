@@ -348,7 +348,7 @@ if __name__ == '__main__':
                         ONCE for each model setting, and only after you've \
                         completed ALL hyperparameter tuning on the validation set.\
                         Note we are not requiring you to do this.")
-    parser.add_argument('-r', '--resume', type='str', default='',
+    parser.add_argument('-r', '--resume', type=str, default=None,
                         help='path to hyperparameters optimizer checkpoint to resume the search')
 
     # DO NOT CHANGE THIS (setting the random seed makes experiments deterministic,
