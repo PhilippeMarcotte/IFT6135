@@ -136,7 +136,7 @@ parser.add_argument('--dp_keep_prob', type=float, default=0.35,
 
 # Arguments that you may want to make use of / implement more code for
 parser.add_argument('--debug', action='store_true') 
-parser.add_argument('--save_dir', type=str, default='',
+parser.add_argument('--save_dir', type=str, default='logs',
                     help='path to save the experimental config, logs, model \
                     This is automatically generated based on the command line \
                     arguments you pass and only needs to be set if you want a \
@@ -160,7 +160,7 @@ argsdict['code_file'] = sys.argv[0]
 # name for the experimental dir
 print("\n########## Setting Up Experiment ######################")
 flags = [flag.lstrip('--') for flag in sys.argv[1:]]
-experiment_path = os.path.join(args.save_dir+'_'.join([argsdict['model'],
+experiment_path = os.path.join(args.save_dir, '_'.join([argsdict['model'],
                                          argsdict['optimizer']] 
                                          + flags))
 
@@ -392,10 +392,10 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         tt = torch.squeeze(targets.view(-1, model.batch_size * model.seq_len))
 
         # LOSS COMPUTATION
-        # This line currently averages across all the sequences in a mini-batch 
+        # This line currently averages across all the sequences in a mini-batch
         # and all time-steps of the sequences.
-        # For problem 5.3, you will (instead) need to compute the average loss 
-        #at each time-step separately. 
+        # For problem 5.3, you will (instead) need to compute the average loss
+        #at each time-step separately.
         loss = loss_fn(outputs.contiguous().view(-1, model.vocab_size), tt)
         costs += loss.data.item() * model.seq_len
         losses.append(costs)
