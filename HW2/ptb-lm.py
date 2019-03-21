@@ -377,7 +377,7 @@ def run_epoch(model, data, is_train=False, lr=1.0):
     costs = 0.0
     iters = 0
     losses = []
-    loss_timestep = torch.zeros([model.seq_len]).to(device)
+    loss_timestep = torch.zeros([model.seq_len])#.to(device)
     item_count = 0
     # LOOP THROUGH MINIBATCHES
     for step, (x, y) in enumerate(ptb_iterator(data, model.batch_size, model.seq_len)):
@@ -412,8 +412,12 @@ def run_epoch(model, data, is_train=False, lr=1.0):
 
 
         for i in range(outputs.size(0)):
-            loss_timestep[i] = loss_fn(outputs[i,:,:],tt_timestep[:,i])
-        item_count += 120
+            # print((outputs[i,:,:]).shape)
+            # print((tt_timestep[:,i]).shape)
+            # print(loss_fn(outputs[i,:,:],tt_timestep[:,i]))
+            loss_timestep[i] += loss_fn(outputs[i,:,:],tt_timestep[:,i]).data.item()
+            #print(loss_timestep)
+        item_count += 1.0
 
         if args.debug:
             print(step, loss)
@@ -430,8 +434,8 @@ def run_epoch(model, data, is_train=False, lr=1.0):
                 print("step: {}\t"
                       "loss (sum over all examples' seen this epoch): {}\t"
                       "speed (wps): {}".format(step, costs, iters * model.batch_size / (time.time() - start_time)))
-        #loss_timestep = loss_timestep // item_count
-    return np.exp(costs / iters), losses
+    loss_timestep = loss_timestep / item_count
+    return np.exp(costs / iters), losses, loss_timestep
 
 
 
@@ -456,7 +460,7 @@ else:
     num_epochs = args.num_epochs
 
 # MAIN LOOP
-for epoch in range(num_epochs):
+for epoch in range(1):
     t0 = time.time()
     print('\nEPOCH '+str(epoch)+' ------------------')
     if args.optimizer == 'SGD_LR_SCHEDULE':
@@ -467,7 +471,14 @@ for epoch in range(num_epochs):
     #train_ppl, train_loss = run_epoch(model, train_data, True, lr)
 
     # RUN MODEL ON VALIDATION DATA
-    val_ppl, val_loss = run_epoch(model, valid_data)
+    val_ppl, val_loss, timestep_loss = run_epoch(model, valid_data)
+
+    #plotting
+    import matplotlib.pyplot as plt
+    print(timestep_loss)
+    x = np.arange(model.seq_len)
+    plt.plot(x,timestep_loss.numpy())
+    plt.show()
 
 
     # SAVE MODEL IF IT'S THE BEST SO FAR
@@ -486,13 +497,12 @@ for epoch in range(num_epochs):
         # model and run on the test data with batch_size=1
 
     # LOC RESULTS
-    train_ppls.append(train_ppl)
+    #train_ppls.append(train_ppl)
     val_ppls.append(val_ppl)
-    train_losses.extend(train_loss)
+    #train_losses.extend(train_loss)
     val_losses.extend(val_loss)
     times.append(time.time() - t0)
     log_str = 'epoch: ' + str(epoch) + '\t' \
-            + 'train ppl: ' + str(train_ppl) + '\t' \
             + 'val ppl: ' + str(val_ppl)  + '\t' \
             + 'best val: ' + str(best_val_so_far) + '\t' \
             + 'time (s) spent in epoch: ' + str(times[-1])
@@ -503,9 +513,9 @@ for epoch in range(num_epochs):
 # SAVE LEARNING CURVES
 lc_path = os.path.join(args.save_dir, 'learning_curves.npy')
 print('\nDONE\n\nSaving learning curves to '+lc_path)
-np.save(lc_path, {'train_ppls':train_ppls, 
+np.save(lc_path, {'val_ts_losses':timestep_loss.numpy(),
                   'val_ppls':val_ppls, 
-                  'train_losses':train_losses,
+                  #'train_losses':train_losses,
                   'val_losses':val_losses,
                   'times': times})
 # NOTE ==============================================
