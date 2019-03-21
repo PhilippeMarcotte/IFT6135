@@ -321,6 +321,9 @@ elif args.model == 'TRANSFORMER':
 else:
   print("Model type not recognized.")
 
+state = torch.load('./best_params.pt')
+model.load_state_dict(state)
+
 model = model.to(device)
 
 # LOSS FUNCTION
@@ -374,9 +377,11 @@ def run_epoch(model, data, is_train=False, lr=1.0):
     costs = 0.0
     iters = 0
     losses = []
-
+    loss_timestep = torch.zeros([model.seq_len]).to(device)
+    item_count = 0
     # LOOP THROUGH MINIBATCHES
     for step, (x, y) in enumerate(ptb_iterator(data, model.batch_size, model.seq_len)):
+        print(1)
         if args.model == 'TRANSFORMER':
             batch = Batch(torch.from_numpy(x).long().to(device))
             model.zero_grad()
@@ -400,6 +405,16 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         costs += loss.data.item() * model.seq_len
         losses.append(costs)
         iters += model.seq_len
+
+        #Loss per timesteps
+        tt_timestep = tt.view(model.batch_size,-1) #reshape to get a column for each time step
+        assert tt_timestep.size(1)==model.seq_len
+
+
+        for i in range(outputs.size(0)):
+            loss_timestep[i] = loss_fn(outputs[i,:,:],tt_timestep[:,i])
+        item_count += 120
+
         if args.debug:
             print(step, loss)
         if is_train:  # Only update parameters if training 
@@ -415,6 +430,7 @@ def run_epoch(model, data, is_train=False, lr=1.0):
                 print("step: {}\t"
                       "loss (sum over all examples' seen this epoch): {}\t"
                       "speed (wps): {}".format(step, costs, iters * model.batch_size / (time.time() - start_time)))
+        #loss_timestep = loss_timestep // item_count
     return np.exp(costs / iters), losses
 
 
@@ -448,7 +464,7 @@ for epoch in range(num_epochs):
         lr = lr * lr_decay # decay lr if it is time
 
     # RUN MODEL ON TRAINING DATA
-    train_ppl, train_loss = run_epoch(model, train_data, True, lr)
+    #train_ppl, train_loss = run_epoch(model, train_data, True, lr)
 
     # RUN MODEL ON VALIDATION DATA
     val_ppl, val_loss = run_epoch(model, valid_data)
