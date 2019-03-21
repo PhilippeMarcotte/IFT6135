@@ -221,7 +221,7 @@ class RNN(RNNbase):  # Implement a stacked vanilla RNN with Tanh nonlinearities.
 class RecurrentUnit(nn.Module):
     def __init__(self, in_size, hidden_size):
         super(RecurrentUnit, self).__init__()
-        self.affine_x = nn.Linear(in_size, hidden_size, bias=False)
+        self.affine_x = nn.Linear(in_size, hidden_size)
         self.affine_h = nn.Linear(hidden_size, hidden_size)
         self.tanh = nn.Tanh()
 
