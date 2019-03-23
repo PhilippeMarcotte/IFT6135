@@ -189,9 +189,12 @@ class RNNbase(nn.Module):
 
         softmax = nn.Softmax()
         samples = []
+        next_hidden = hidden
+        next_input = input
         for i in range(generated_seq_len):
-            y, hidden = self.forward_token(input, hidden)
+            y, hidden = self.forward_token(next_input, next_hidden)
             next_input = torch.argmax(softmax(y), dim=1)
+            next_hidden = hidden
             samples.append(next_input)
 
         return torch.stack(samples)

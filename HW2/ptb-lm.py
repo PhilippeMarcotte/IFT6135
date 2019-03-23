@@ -381,7 +381,6 @@ def run_epoch(model, data, is_train=False, lr=1.0):
     item_count = 0
     # LOOP THROUGH MINIBATCHES
     for step, (x, y) in enumerate(ptb_iterator(data, model.batch_size, model.seq_len)):
-        print(1)
         if args.model == 'TRANSFORMER':
             batch = Batch(torch.from_numpy(x).long().to(device))
             model.zero_grad()
@@ -439,86 +438,96 @@ def run_epoch(model, data, is_train=False, lr=1.0):
 
 
 
-###############################################################################
+# ###############################################################################
+# #
+# # RUN MAIN LOOP (TRAIN AND VAL)
+# #
+# ###############################################################################
 #
-# RUN MAIN LOOP (TRAIN AND VAL)
+# print("\n########## Running Main Loop ##########################")
+# train_ppls = []
+# train_losses = []
+# val_ppls = []
+# val_losses = []
+# best_val_so_far = np.inf
+# times = []
 #
-###############################################################################
-
-print("\n########## Running Main Loop ##########################")
-train_ppls = []
-train_losses = []
-val_ppls = []
-val_losses = []
-best_val_so_far = np.inf
-times = []
-
-# In debug mode, only run one epoch
-if args.debug:
-    num_epochs = 1 
-else:
-    num_epochs = args.num_epochs
-
-# MAIN LOOP
-for epoch in range(1):
-    t0 = time.time()
-    print('\nEPOCH '+str(epoch)+' ------------------')
-    if args.optimizer == 'SGD_LR_SCHEDULE':
-        lr_decay = lr_decay_base ** max(epoch - m_flat_lr, 0)
-        lr = lr * lr_decay # decay lr if it is time
-
-    # RUN MODEL ON TRAINING DATA
-    #train_ppl, train_loss = run_epoch(model, train_data, True, lr)
-
-    # RUN MODEL ON VALIDATION DATA
-    val_ppl, val_loss, timestep_loss = run_epoch(model, valid_data)
-
-    #plotting
-    import matplotlib.pyplot as plt
-    print(timestep_loss)
-    x = np.arange(model.seq_len)
-    plt.plot(x,timestep_loss.numpy())
-    plt.show()
-
-
-    # SAVE MODEL IF IT'S THE BEST SO FAR
-    if val_ppl < best_val_so_far:
-        best_val_so_far = val_ppl
-        if args.save_best:
-            print("Saving model parameters to best_params.pt")
-            torch.save(model.state_dict(), os.path.join(args.save_dir, 'best_params.pt'))
-        # NOTE ==============================================
-        # You will need to load these parameters into the same model
-        # for a couple Problems: so that you can compute the gradient 
-        # of the loss w.r.t. hidden state as required in Problem 5.2
-        # and to sample from the the model as required in Problem 5.3
-        # We are not asking you to run on the test data, but if you 
-        # want to look at test performance you would load the saved
-        # model and run on the test data with batch_size=1
-
-    # LOC RESULTS
-    #train_ppls.append(train_ppl)
-    val_ppls.append(val_ppl)
-    #train_losses.extend(train_loss)
-    val_losses.extend(val_loss)
-    times.append(time.time() - t0)
-    log_str = 'epoch: ' + str(epoch) + '\t' \
-            + 'val ppl: ' + str(val_ppl)  + '\t' \
-            + 'best val: ' + str(best_val_so_far) + '\t' \
-            + 'time (s) spent in epoch: ' + str(times[-1])
-    print(log_str)
-    with open (os.path.join(args.save_dir, 'log.txt'), 'a') as f_:
-        f_.write(log_str+ '\n')
-
-# SAVE LEARNING CURVES
-lc_path = os.path.join(args.save_dir, 'learning_curves.npy')
-print('\nDONE\n\nSaving learning curves to '+lc_path)
-np.save(lc_path, {'val_ts_losses':timestep_loss.numpy(),
-                  'val_ppls':val_ppls, 
-                  #'train_losses':train_losses,
-                  'val_losses':val_losses,
-                  'times': times})
+# # In debug mode, only run one epoch
+# if args.debug:
+#     num_epochs = 1
+# else:
+#     num_epochs = args.num_epochs
+#
+# # MAIN LOOP
+# for epoch in range(1):
+#     t0 = time.time()
+#     print('\nEPOCH '+str(epoch)+' ------------------')
+#     if args.optimizer == 'SGD_LR_SCHEDULE':
+#         lr_decay = lr_decay_base ** max(epoch - m_flat_lr, 0)
+#         lr = lr * lr_decay # decay lr if it is time
+#
+#     # RUN MODEL ON TRAINING DATA
+#     #train_ppl, train_loss = run_epoch(model, train_data, True, lr)
+#
+#     # RUN MODEL ON VALIDATION DATA
+#     val_ppl, val_loss, timestep_loss = run_epoch(model, valid_data)
+#
+#     #plotting
+#     import matplotlib.pyplot as plt
+#     print(timestep_loss)
+#     x = np.arange(model.seq_len)
+#     plt.plot(x,timestep_loss.numpy())
+#     plt.show()
+#
+#
+#     # SAVE MODEL IF IT'S THE BEST SO FAR
+#     if val_ppl < best_val_so_far:
+#         best_val_so_far = val_ppl
+#         if args.save_best:
+#             print("Saving model parameters to best_params.pt")
+#             torch.save(model.state_dict(), os.path.join(args.save_dir, 'best_params.pt'))
+#         # NOTE ==============================================
+#         # You will need to load these parameters into the same model
+#         # for a couple Problems: so that you can compute the gradient
+#         # of the loss w.r.t. hidden state as required in Problem 5.2
+#         # and to sample from the the model as required in Problem 5.3
+#         # We are not asking you to run on the test data, but if you
+#         # want to look at test performance you would load the saved
+#         # model and run on the test data with batch_size=1
+#
+#     # LOC RESULTS
+#     #train_ppls.append(train_ppl)
+#     val_ppls.append(val_ppl)
+#     #train_losses.extend(train_loss)
+#     val_losses.extend(val_loss)
+#     times.append(time.time() - t0)
+#     log_str = 'epoch: ' + str(epoch) + '\t' \
+#             + 'val ppl: ' + str(val_ppl)  + '\t' \
+#             + 'best val: ' + str(best_val_so_far) + '\t' \
+#             + 'time (s) spent in epoch: ' + str(times[-1])
+#     print(log_str)
+#     with open (os.path.join(args.save_dir, 'log.txt'), 'a') as f_:
+#         f_.write(log_str+ '\n')
+#
+# # SAVE LEARNING CURVES
+# lc_path = os.path.join(args.save_dir, 'learning_curves.npy')
+# print('\nDONE\n\nSaving learning curves to '+lc_path)
+# np.save(lc_path, {'val_ts_losses':timestep_loss.numpy(),
+#                   'val_ppls':val_ppls,
+#                   #'train_losses':train_losses,
+#                   'val_losses':val_losses,
+#                   'times': times})
 # NOTE ==============================================
 # To load these, run 
 # >>> x = np.load(lc_path)[()]
 # You will need these values for plotting learning curves (Problem 4)
+val_loss=[]
+val_ppl=[]
+timestep_loss =[]
+#val_ppl, val_loss, timestep_loss = run_epoch(model, valid_data)
+input = torch.tensor([20]).to(device)
+hidden = model.init_hidden().to(device)#hidden = torch.zeros([args.num_layers, model.batch_size,args.hidden_size]).to(device)
+seq_length = args.seq_len
+sequence = model.generate(input,hidden, seq_length )
+
+print(sequence)
