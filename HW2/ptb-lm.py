@@ -173,7 +173,7 @@ while os.path.exists(experiment_path + "_" + str(i)):
 experiment_path = experiment_path + "_" + str(i)
 
 # Creates an experimental directory and dumps all the args to a text file
-os.mkdir(experiment_path)
+os.makedirs(experiment_path, exist_ok=True)
 print ("\nPutting log in %s"%experiment_path)
 argsdict['save_dir'] = experiment_path
 with open (os.path.join(experiment_path,'exp_config.txt'), 'w') as f:
@@ -321,6 +321,11 @@ elif args.model == 'TRANSFORMER':
 else:
   print("Model type not recognized.")
 
+
+#loading weights
+
+state = torch.load('./best_params.pt')
+model.load_state_dict(state)
 model = model.to(device)
 
 # LOSS FUNCTION
@@ -400,21 +405,37 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         costs += loss.data.item() * model.seq_len
         losses.append(costs)
         iters += model.seq_len
-        if args.debug:
+        """if args.debug:
             print(step, loss)
-        if is_train:  # Only update parameters if training 
+        if is_train:  # Only update parameters if training
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
             if args.optimizer == 'ADAM':
                 optimizer.step()
-            else: 
+            else:
                 for p in model.parameters():
                     if p.grad is not None:
                         p.data.add_(-lr, p.grad.data)
             if step % (epoch_size // 10) == 10:
                 print("step: {}\t"
                       "loss (sum over all examples' seen this epoch): {}\t"
-                      "speed (wps): {}".format(step, costs, iters * model.batch_size / (time.time() - start_time)))
+                      "speed (wps): {}".format(step, costs, iters * model.batch_size / (time.time() - start_time)))"""
+        break
+
+
+    for i in range(model.batch_size):
+        last_prediction = outputs[-1, i, :].view(1,10000)
+        last_target = tt.view(1, 35)[i,-1].view(1)
+        last_loss = loss_fn(last_prediction, last_target)
+
+        gradients_norm = []
+        for j, token in enumerate(model.all_hidden_states[:-1]):
+            gradients = torch.autograd.grad(last_loss, token, retain_graph=True)[0]
+
+            gradient_norm = torch.norm(torch.cat((gradients[0], gradients[-1]), 1), p=2, dim=1)
+
+            gradients_norm.append(torch.mean(gradient_norm).item())
+
     return np.exp(costs / iters), losses
 
 
@@ -450,7 +471,8 @@ for epoch in range(num_epochs):
     # RUN MODEL ON TRAINING DATA
     train_ppl, train_loss = run_epoch(model, train_data, True, lr)
 
-    # RUN MODEL ON VALIDATION DATA
+    break
+    """"# RUN MODEL ON VALIDATION DATA
     val_ppl, val_loss = run_epoch(model, valid_data)
 
 
@@ -495,4 +517,4 @@ np.save(lc_path, {'train_ppls':train_ppls,
 # NOTE ==============================================
 # To load these, run 
 # >>> x = np.load(lc_path)[()]
-# You will need these values for plotting learning curves (Problem 4)
+# You will need these values for plotting learning curves (Problem 4)"""
