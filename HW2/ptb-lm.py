@@ -381,7 +381,6 @@ def run_epoch(model, data, is_train=False, lr=1.0):
     item_count = 0
     # LOOP THROUGH MINIBATCHES
     for step, (x, y) in enumerate(ptb_iterator(data, model.batch_size, model.seq_len)):
-        print(1)
         if args.model == 'TRANSFORMER':
             batch = Batch(torch.from_numpy(x).long().to(device))
             model.zero_grad()
@@ -407,15 +406,15 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         iters += model.seq_len
 
         #Loss per timesteps
-        tt_timestep = tt.view(model.batch_size,-1) #reshape to get a column for each time step
-        assert tt_timestep.size(1)==model.seq_len
+        tt_timestep = tt.view(-1, model.batch_size) #reshape to get a column for each time step
+        assert tt_timestep.size(0)==model.seq_len
 
 
         for i in range(outputs.size(0)):
             # print((outputs[i,:,:]).shape)
             # print((tt_timestep[:,i]).shape)
             # print(loss_fn(outputs[i,:,:],tt_timestep[:,i]))
-            loss_timestep[i] += loss_fn(outputs[i,:,:],tt_timestep[:,i]).data.item()
+            loss_timestep[i] += loss_fn(outputs[i],targets[i]).data.item()
             #print(loss_timestep)
         item_count += 1.0
 
@@ -473,11 +472,18 @@ for epoch in range(1):
     # RUN MODEL ON VALIDATION DATA
     val_ppl, val_loss, timestep_loss = run_epoch(model, valid_data)
 
+    lossesssss = ','.join(map(str, timestep_loss.tolist()))
+
+    with open(os.path.join(args.save_dir, '5.1_' + args.model + '_avg_losses_per_time_steps.txt'), 'a') as f_:
+        f_.write(lossesssss + '\n')
+
     #plotting
     import matplotlib.pyplot as plt
     print(timestep_loss)
     x = np.arange(model.seq_len)
     plt.plot(x,timestep_loss.numpy())
+    plt.xlabel("Timestep")
+    plt.ylabel("Average Loss")
     plt.show()
 
 
