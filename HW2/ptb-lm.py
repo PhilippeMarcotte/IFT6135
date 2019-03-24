@@ -387,6 +387,8 @@ def run_epoch(model, data, is_train=False, lr=1.0):
             outputs = model.forward(batch.data, batch.mask).transpose(1,0)
             #print ("outputs.shape", outputs.shape)
         else:
+            hidden = model.init_hidden()
+            hidden = hidden.to(device)
             inputs = torch.from_numpy(x.astype(np.int64)).transpose(0, 1).contiguous().to(device)#.cuda()
             model.zero_grad()
             hidden = repackage_hidden(hidden)
@@ -416,7 +418,7 @@ def run_epoch(model, data, is_train=False, lr=1.0):
             # print(loss_fn(outputs[i,:,:],tt_timestep[:,i]))
             loss_timestep[i] += loss_fn(outputs[i],targets[i]).data.item()
             #print(loss_timestep)
-        item_count += 1.0
+        item_count = step + 1
 
         if args.debug:
             print(step, loss)
