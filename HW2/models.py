@@ -27,6 +27,7 @@ from skopt.utils import Real, Integer
 # You should not modify the interals of the Transformer
 # except where indicated to implement the multi-head
 # attention.
+from torch.distributions import Categorical
 
 
 def clones(module, N):
@@ -192,9 +193,9 @@ class RNNbase(nn.Module):
         next_hidden = hidden
         next_input = input
         for i in range(generated_seq_len):
-            y, hidden = self.forward_token(next_input, next_hidden)
-            next_input = torch.argmax(softmax(y), dim=1)
-            next_hidden = hidden
+            y, next_hidden = self.forward_token(next_input, next_hidden)
+            argmax_next_input = torch.argmax(softmax(y), dim=1)
+            next_input = Categorical(softmax(y)).sample()
             samples.append(next_input)
 
         return torch.stack(samples)

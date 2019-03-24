@@ -173,7 +173,7 @@ while os.path.exists(experiment_path + "_" + str(i)):
 experiment_path = experiment_path + "_" + str(i)
 
 # Creates an experimental directory and dumps all the args to a text file
-os.mkdir(experiment_path)
+os.makedirs(experiment_path, exist_ok=True)
 print ("\nPutting log in %s"%experiment_path)
 argsdict['save_dir'] = experiment_path
 with open (os.path.join(experiment_path,'exp_config.txt'), 'w') as f:
@@ -525,9 +525,17 @@ val_loss=[]
 val_ppl=[]
 timestep_loss =[]
 #val_ppl, val_loss, timestep_loss = run_epoch(model, valid_data)
-input = torch.tensor([20]).to(device)
+#print(val_ppl)
+input = torch.tensor([1]).to(device)
 hidden = model.init_hidden().to(device)#hidden = torch.zeros([args.num_layers, model.batch_size,args.hidden_size]).to(device)
 seq_length = args.seq_len
-sequence = model.generate(input,hidden, seq_length )
 
-print(sequence)
+for i in (35, 70):
+    for j in range(10):
+        input = torch.randint(low = 0, high = 999, size = (1,), dtype = torch.long).to(device)
+        sequence = model.generate(input, hidden, i)
+        phrase = "\n" + str(input.item()) + ": "
+        for token_id in enumerate(sequence):
+            phrase += id_2_word[token_id[1].item()] + " "
+
+        print(phrase)
