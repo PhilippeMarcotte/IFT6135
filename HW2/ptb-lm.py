@@ -436,6 +436,13 @@ def run_epoch(model, data, is_train=False, lr=1.0):
 
             gradients_norm.append(torch.mean(gradient_norm).item())
 
+
+
+        grads = ','.join(map(str, gradients_norm))
+
+        with open (os.path.join(args.save_dir, args.model + '_gradNorms_' + str(i) + '.csv'), 'a') as f_:
+            f_.write(grads + '\n')
+
     return np.exp(costs / iters), losses
 
 
