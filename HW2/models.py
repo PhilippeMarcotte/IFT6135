@@ -141,6 +141,7 @@ class RNNbase(nn.Module):
                   if you are curious.
                         shape: (num_layers, batch_size, hidden_size)
         """
+        self.all_hidden_states = []
         logits = []
         for i in range(self.seq_len):
             tokens = inputs[i]
@@ -159,7 +160,10 @@ class RNNbase(nn.Module):
             next_hidden.append(x)
             x = self.dropout(x)
         y = self.fc(x)
-        return y, torch.stack(next_hidden)
+
+        next_hidden = torch.stack(next_hidden)
+        self.all_hidden_states.append(next_hidden)
+        return y, next_hidden
 
     def generate(self, input, hidden, generated_seq_len):
         # TODO ========================
@@ -189,8 +193,9 @@ class RNNbase(nn.Module):
 
         softmax = nn.Softmax()
         samples = []
+        next_input = input
         for i in range(generated_seq_len):
-            y, hidden = self.forward_token(input, hidden)
+            y, hidden = self.forward_token(next_input, hidden)
             next_input = torch.argmax(softmax(y), dim=1)
             samples.append(next_input)
 
