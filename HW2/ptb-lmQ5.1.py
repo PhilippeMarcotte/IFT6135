@@ -102,7 +102,7 @@ from models import make_model as TRANSFORMER
 #
 ##############################################################################
 
-parser = argparse.ArgumentParser(description='PUT THE CHECKPOINT IN THE BESIDE THIS FILE')
+parser = argparse.ArgumentParser(description='PUT THE CHECKPOINT BESIDE THIS FILE')
 
 # Arguments you may need to set to run different experiments in 4.1 & 4.2.
 parser.add_argument('--data', type=str, default='data',
