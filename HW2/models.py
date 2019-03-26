@@ -43,9 +43,9 @@ def clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 
-rnn_hp_space = [Real(0.1, 20, name="initial_lr"),
+rnn_hp_space = [#Real(0.1, 20, name="initial_lr"),
                 Integer(100, 500, name="emb_size"),
-                Integer(100, 500, name="hidden_size"),
+                Integer(100, 2000, name="hidden_size"),
                 Integer(2, 5, name="num_layers"),
                 Real(0.35, 0.65, name="dp_keep_prob")]
 

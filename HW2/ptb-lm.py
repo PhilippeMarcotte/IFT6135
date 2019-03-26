@@ -173,7 +173,7 @@ while os.path.exists(experiment_path + "_" + str(i)):
 experiment_path = experiment_path + "_" + str(i)
 
 # Creates an experimental directory and dumps all the args to a text file
-os.mkdir(experiment_path)
+os.makedirs(experiment_path, exist_ok=True)
 print ("\nPutting log in %s"%experiment_path)
 argsdict['save_dir'] = experiment_path
 with open (os.path.join(experiment_path,'exp_config.txt'), 'w') as f:
