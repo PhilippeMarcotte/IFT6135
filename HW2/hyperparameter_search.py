@@ -244,8 +244,6 @@ def train(model, args, train_data, valid_data):
     # MAIN LOOP
     for epoch in range(num_epochs):
         t0 = time.time()
-        with open(os.path.join(args["save_dir"], 'log.txt'), 'a') as f_:
-            f_.write(str(t0) + '\n')
         print('\nEPOCH ' + str(epoch) + ' ------------------')
         if args["optimizer"] == 'SGD_LR_SCHEDULE':
             lr_decay = lr_decay_base ** max(epoch - m_flat_lr, 0)

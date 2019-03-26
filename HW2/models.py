@@ -44,9 +44,9 @@ def clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 
-rnn_hp_space = [Real(0.1, 20, name="initial_lr"),
+rnn_hp_space = [#Real(0.1, 20, name="initial_lr"),
                 Integer(100, 500, name="emb_size"),
-                Integer(100, 500, name="hidden_size"),
+                Integer(100, 2000, name="hidden_size"),
                 Integer(2, 5, name="num_layers"),
                 Real(0.35, 0.65, name="dp_keep_prob")]
 
@@ -142,6 +142,7 @@ class RNNbase(nn.Module):
                   if you are curious.
                         shape: (num_layers, batch_size, hidden_size)
         """
+        self.all_hidden_states = []
         logits = []
         for i in range(self.seq_len):
             tokens = inputs[i]
@@ -160,7 +161,10 @@ class RNNbase(nn.Module):
             next_hidden.append(x)
             x = self.dropout(x)
         y = self.fc(x)
-        return y, torch.stack(next_hidden)
+
+        next_hidden = torch.stack(next_hidden)
+        self.all_hidden_states.append(next_hidden)
+        return y, next_hidden
 
     def generate(self, input, hidden, generated_seq_len):
         # TODO ========================
