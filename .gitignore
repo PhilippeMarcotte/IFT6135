@@ -112,3 +112,5 @@ HW2/GRU_SGD_LR_SCHEDULE_1/exp_config\.txt
 HW2/GRU_SGD_LR_SCHEDULE_0/exp_config\.txt
 
 HW2/best_params\.pt
+
+HW3/.idea/*
