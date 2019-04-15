@@ -9,11 +9,16 @@ Created on Sat Mar 23 13:20:15 2019
 
 from __future__ import print_function
 import numpy as np
-import torch 
+import torch
+import torch.nn as nn
 import matplotlib.pyplot as plt
-import distances
 import samplers
+import discriminators
 from distances import distance
+import torch.nn.functional as F
+
+
+
 # plot p0 and p1
 plt.figure()
 
@@ -46,8 +51,8 @@ for i in range(21):
     q_gen.send(None)
     q = q_gen.send(x[i])
     # distances
-    JSD.append(distance.jsd(p[:,1],q[:,1]))
-    WSD.append(distance.wassestein(p,q))
+    JSD.append(distance.jsd(p,q))
+    WSD.append(distance.wasserstein(p,q))
 
 plt.plot(x,JSD)
 plt.plot(x,WSD)
@@ -57,7 +62,63 @@ plt.show()
 ############### estimate the density of distribution4
 
 #######--- INSERT YOUR CODE BELOW ---#######
- 
+# Device configuration
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+learning_rate = 0.001
+D = discriminators.Discriminator().to(device)
+
+# Loss and optimizer
+criterion = torch.nn.functional.binary_cross_entropy
+optimizer = torch.optim.SGD(D.parameters(), lr=learning_rate)
+
+# Train the model
+p_gen = samplers.distribution1(0)
+q_gen = samplers.distribution1(-1)
+p_gen.send(None)
+q_gen.send(None)
+
+trainLoss = []
+validLoss = []
+validAcc = []
+total_step = 2
+trainAcc = []
+best_acc = 0
+num_epochs = 100
+for epoch in range(num_epochs):
+    #     exp_lr_scheduler.step()
+    print('Epoch [{}/{}]'.format(epoch + 1, num_epochs))
+    meanLoss = 0
+    correct = 0
+    total = 0
+    for i in range(2):
+        p = torch.from_numpy(p_gen.send(0)).float().to(device)
+        q = torch.from_numpy(q_gen.send(-1)).float().to(device)
+        labels_real = torch.ones(p.shape[0]).to(device)
+        labels_fake = torch.zeros(q.shape[0]).to(device)
+        # Forward pass
+        outputs_real = D(p)
+        outputs_fake = D(q)
+
+        _, predicted_real = torch.max(outputs_real.data, 1)
+        _, predicted_fake = torch.max(outputs_fake.data, 1)
+        total += 2*labels_real.size(0)
+        correct_this_batch = (predicted_real.float() == labels_real).sum().item() + (predicted_fake.float() == labels_fake).sum().item()
+        correct += correct_this_batch
+        loss = (torch.log(torch.tensor([2.0])).to(device) + 0.5*criterion(F.sigmoid(outputs_real), labels_real) + 0.5*criterion(F.sigmoid(outputs_fake), labels_fake))
+        meanLoss += loss.item()
+
+        # Backward and optimize
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        if (i + 1) % 1 == 0:
+            print('Step [{}/{}], Loss: {:.4f}({:.4f}), Acc: {:.3f}({:.3f})'
+                  .format(i + 1, total_step, loss.item(), meanLoss / (i + 1), correct_this_batch * 100 / (2*labels_real.size(0)),
+                          correct * 100 / total, ))
+        trainLoss.append(meanLoss / (i + 1))
+        trainAcc.append(100 * correct / total)
 
 
 
