@@ -14,7 +14,7 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 import samplers
 import discriminators
-from distances import distance
+import distances
 import torch.nn.functional as F
 
 
@@ -51,8 +51,8 @@ for i in range(21):
     q_gen.send(None)
     q = q_gen.send(x[i])
     # distances
-    JSD.append(distance.jsd(p,q))
-    WSD.append(distance.wasserstein(p,q))
+    JSD.append(distances.jsd(p,q))
+    WSD.append(distances.wasserstein(p,q))
 
 plt.plot(x,JSD)
 plt.plot(x,WSD)
@@ -69,7 +69,7 @@ learning_rate = 0.001
 D = discriminators.Discriminator().to(device)
 
 # Loss and optimizer
-criterion = torch.nn.functional.binary_cross_entropy
+criterion = torch.nn.BCELoss()
 optimizer = torch.optim.SGD(D.parameters(), lr=learning_rate)
 
 # Train the model
@@ -84,41 +84,41 @@ validAcc = []
 total_step = 2
 trainAcc = []
 best_acc = 0
-num_epochs = 100
+num_epochs = 1000
+meanLoss = 0
+correct = 0
+total = 0
+log_frequency = 100
 for epoch in range(num_epochs):
     #     exp_lr_scheduler.step()
-    print('Epoch [{}/{}]'.format(epoch + 1, num_epochs))
-    meanLoss = 0
-    correct = 0
-    total = 0
-    for i in range(2):
-        p = torch.from_numpy(p_gen.send(0)).float().to(device)
-        q = torch.from_numpy(q_gen.send(-1)).float().to(device)
-        labels_real = torch.ones(p.shape[0]).to(device)
-        labels_fake = torch.zeros(q.shape[0]).to(device)
-        # Forward pass
-        outputs_real = D(p)
-        outputs_fake = D(q)
+    p = torch.from_numpy(p_gen.send(0)).float().to(device)
+    q = torch.from_numpy(q_gen.send(-1)).float().to(device)
+    labels_real = torch.ones(p.shape[0]).to(device)
+    labels_fake = torch.zeros(q.shape[0]).to(device)
+    # Forward pass
+    outputs_real = F.sigmoid(D(p))
+    outputs_fake = F.sigmoid(D(q))
 
-        _, predicted_real = torch.max(outputs_real.data, 1)
-        _, predicted_fake = torch.max(outputs_fake.data, 1)
-        total += 2*labels_real.size(0)
-        correct_this_batch = (predicted_real.float() == labels_real).sum().item() + (predicted_fake.float() == labels_fake).sum().item()
-        correct += correct_this_batch
-        loss = (torch.log(torch.tensor([2.0])).to(device) + 0.5*criterion(F.sigmoid(outputs_real), labels_real) + 0.5*criterion(F.sigmoid(outputs_fake), labels_fake))
-        meanLoss += loss.item()
+    predicted_real = (outputs_real.data > 0.5).float().squeeze()
+    predicted_fake = (outputs_fake.data > 0.5).float().squeeze()
+    total += 2*labels_real.size(0)
+    correct_this_batch = (predicted_real == labels_real).sum().item() + (predicted_fake == labels_fake).sum().item()
+    correct += correct_this_batch
+    loss = (torch.log(torch.tensor([2.0])).to(device) + 0.5*criterion(outputs_real, labels_real) + 0.5*criterion(outputs_fake, labels_fake))
+    meanLoss += loss.item()
 
-        # Backward and optimize
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+    # Backward and optimize
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
 
-        if (i + 1) % 1 == 0:
-            print('Step [{}/{}], Loss: {:.4f}({:.4f}), Acc: {:.3f}({:.3f})'
-                  .format(i + 1, total_step, loss.item(), meanLoss / (i + 1), correct_this_batch * 100 / (2*labels_real.size(0)),
-                          correct * 100 / total, ))
-        trainLoss.append(meanLoss / (i + 1))
-        trainAcc.append(100 * correct / total)
+    if epoch % log_frequency == 0:
+        print('Epoch [{}/{}]'.format(epoch, num_epochs))
+        print('Loss: {:.4f}({:.4f}), Acc: {:.3f}({:.3f})'
+              .format(loss.item(), meanLoss / (epoch + 1), correct_this_batch * 100 / (2*labels_real.size(0)),
+                      correct * 100 / total))
+    trainLoss.append(meanLoss / (epoch + 1))
+    trainAcc.append(100 * correct / total)
 
 
 

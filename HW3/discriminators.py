@@ -8,11 +8,11 @@ class Discriminator(nn.Module):
     def __init__(self, num_classes=1):
         super(Discriminator,self).__init__()
         self.classifier = nn.Sequential(
-            nn.Linear(2,2),
+            nn.Linear(2,100),
             nn.ReLU(True),
-            nn.Linear(2,2),
+            nn.Linear(100,100),
             nn.ReLU(True),
-            nn.Linear(2,num_classes)
+            nn.Linear(100,num_classes)
         )
 
     def forward(self, x):
