@@ -12,7 +12,7 @@ class JSDLoss(nn.Module):
         self.criterion = torch.nn.BCELoss()
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     def forward(self, outputs_real,outputs_fake, labels_real, labels_fake, p,q, D):
-        return (torch.log(torch.tensor([2.0])).to(self.device) + 0.5*self.criterion(outputs_real, labels_real) + 0.5*self.criterion(outputs_fake, labels_fake))
+        return (-torch.log(torch.tensor([2.0])).to(self.device) + 0.5*self.criterion(outputs_real, labels_real) + 0.5*self.criterion(outputs_fake, labels_fake))
 
 
 class WassersteinLoss(nn.Module):
@@ -42,4 +42,17 @@ class WassersteinLoss(nn.Module):
         return penality
     def forward(self, outputs_real,outputs_fake, labels_real, labels_fake, p,q, D):
         GP = self.GradPenality(p,q,D)
+        # print("-----------------")
+        # print(torch.mean(outputs_real))
+        # print(torch.mean(outputs_fake))
+        # print(self.lamda_weight*GP)
         return -torch.mean(outputs_real) + torch.mean(outputs_fake) + self.lamda_weight*GP
+
+
+class BCELoss2(nn.Module):
+    def __init__(self):
+        super(BCELoss2,self).__init__()
+        self.criterion = torch.nn.BCELoss()
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    def forward(self, outputs_real,outputs_fake, labels_real, labels_fake, p,q, D):
+        return (self.criterion(outputs_real, labels_real) + self.criterion(outputs_fake, labels_fake))

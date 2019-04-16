@@ -43,34 +43,7 @@ plt.show()
 
 #######--- INSERT YOUR CODE BELOW ---#######
 
-x = 1
-#training_loop(Losses.JSDLoss(),x)
-training_loop(Losses.WassersteinLoss(10),x)
-
-
-JSD = []
-WSD = []
-x = np.linspace(-1,1,21)
-
-for i in range(21):
-    p = p_gen.send(0)
-    q_gen = samplers.distribution1(x[i])
-    q_gen.send(None)
-    q = q_gen.send(x[i])
-    # distances
-    JSD.append(distances.jsd(p,q))
-    WSD.append(distances.wasserstein(p,q))
-
-plt.plot(x,JSD)
-plt.plot(x,WSD)
-plt.show()
-
-
-
-
-
-
-
+loss, D = training_loop(Losses.BCELoss2(), 0, distribution=4,learning_rate=0.001, num_epochs=20000)
 
 
 ############### plotting things
@@ -78,21 +51,27 @@ plt.show()
 ############### (2) plot the estimated density contrasted with the true density
 
 
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+input = (torch.tensor(xx).float().to(device)).view(1000,-1)
+r = D(input).cpu().detach().numpy() # evaluate xx using your discriminator; replace xx with the output
+plt.figure(figsize=(8,4))
+plt.subplot(1,2,1)
+plt.plot(xx,r)
+plt.title(r'$D(x)$')
 
-# r = xx # evaluate xx using your discriminator; replace xx with the output
-# plt.figure(figsize=(8,4))
-# plt.subplot(1,2,1)
-# plt.plot(xx,r)
-# plt.title(r'$D(x)$')
-#
-# estimate = np.ones_like(xx)*0.2 # estimate the density of distribution4 (on xx) using the discriminator;
-#                                 # replace "np.ones_like(xx)*0." with your estimate
-# plt.subplot(1,2,2)
-# plt.plot(xx,estimate)
-# plt.plot(f(torch.from_numpy(xx)).numpy(), d(torch.from_numpy(xx)).numpy()**(-1)*N(xx))
-# plt.legend(['Estimated','True'])
-# plt.title('Estimated vs True')
+p_gen = samplers.distribution3(1000)
+p_gen.send(None)
+p = p_gen.send(1000)
 
+estimate = p*(r/(1-r))#np.ones_like(xx)*0.2 # estimate the density of distribution4 (on xx) using the discriminator;
+                                # replace "np.ones_like(xx)*0." with your estimate
+plt.subplot(1,2,2)
+plt.plot(xx,estimate)
+plt.plot(f(torch.from_numpy(xx)).numpy(), d(torch.from_numpy(xx)).numpy()**(-1)*N(xx))
+plt.ylim((0,2))
+plt.legend(['Estimated','True'])
+plt.title('Estimated vs True')
+plt.show()
 
 
 

@@ -5,29 +5,31 @@ import samplers
 import discriminators
 import torch.nn.functional as F
 
-def training_loop(LossFct, x):
+def training_loop(LossFct, x, distribution=1, learning_rate = 0.001, num_epochs = 5000):
     # Device configuration
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-    learning_rate = 0.01
-    D = discriminators.Discriminator().to(device)
+    # Distributions properties
+    if distribution == 1:
+        p_gen = samplers.distribution1(0)
+        q_gen = samplers.distribution1(x)
+        nb_input = 2
+    elif distribution == 4:
+        p_gen = samplers.distribution3(512)
+        q_gen = samplers.distribution4(512)
+        nb_input = 1
+    p_gen.send(None)
+    q_gen.send(None)
+
+
+    D = discriminators.Discriminator(n_input=nb_input).to(device)
 
     # Loss and optimizer
     optimizer = torch.optim.SGD(D.parameters(), lr=learning_rate)
 
     # Train the model
-    p_gen = samplers.distribution1(0)
-    q_gen = samplers.distribution1(x)
-    p_gen.send(None)
-    q_gen.send(None)
-
     trainLoss = []
-    validLoss = []
-    validAcc = []
-    total_step = 2
     trainAcc = []
-    best_acc = 0
-    num_epochs = 4000
     meanLoss = 0
     correct = 0
     total = 0
@@ -39,8 +41,8 @@ def training_loop(LossFct, x):
         labels_real = torch.ones(p.shape[0]).to(device)
         labels_fake = torch.zeros(q.shape[0]).to(device)
         # Forward pass
-        outputs_real = F.sigmoid(D(p))
-        outputs_fake = F.sigmoid(D(q))
+        outputs_real = torch.sigmoid(D(p))
+        outputs_fake = torch.sigmoid(D(q))
 
         predicted_real = (outputs_real.data > 0.5).float().squeeze()
         predicted_fake = (outputs_fake.data > 0.5).float().squeeze()
@@ -62,3 +64,4 @@ def training_loop(LossFct, x):
                           correct * 100 / total))
         trainLoss.append(meanLoss / (epoch + 1))
         trainAcc.append(100 * correct / total)
+    return loss, D
