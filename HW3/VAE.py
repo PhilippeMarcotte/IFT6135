@@ -1,5 +1,5 @@
 import math
-
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch import nn, cuda
@@ -73,48 +73,54 @@ class VAE(nn.Module):
 def ELBOWLoss(x, x_, mu, log_sigma):
     KL = KLDivergence(mu, log_sigma)
 
-    BCE = nn.BCELoss()
+    BCE = nn.BCELoss(reduction="sum")
     logpx_z = BCE(x_, x)
-    return -(logpx_z - KL) #batch mean loss computed in BCE
+    return (logpx_z + KL) #batch mean loss computed in BCE
 
 def KLDivergence(mu, log_sigma):
-    return -0.5 * torch.sum(1 + log_sigma - mu.pow(2) - log_sigma.exp());
+    return -0.5 * torch.sum(1 + log_sigma - mu.pow(2) - log_sigma.exp())
 
 
 def train(VAE, train_loader, optimizer, device):
     VAE.train()
     losses = []
-
+    mean_loss = 0
+    total = 0
+    total_step = len(train_loader)
     for batch_id, batchX in enumerate(train_loader):
         batchX = batchX.to(device)
         optimizer.zero_grad()
         batchX_, mu, log_sigma = VAE(batchX)
-        loss = ELBOWLoss(batchX, batchX_, mu, log_sigma)
+        loss = ELBOWLoss(batchX.view(-1,784), batchX_.view(-1,784), mu, log_sigma)
         loss.backward()
         losses.append(loss.item())
         optimizer.step()
+        mean_loss += loss.item()
+        total += batchX.shape[0]
 
-        print("------ Train batch " + str(batch_id) + " ------")
-        print("batch loss: " + str(loss))
+        if (batch_id + 1) % 100 == 0:
+            print('Step [{}/{}], Loss: {:.4f}({:.4f})'
+                  .format(batch_id + 1, total_step, loss.item()/batchX.shape[0], mean_loss / total))
 
-    return np.mean(losses)
+    mean_loss = mean_loss / total
+    return mean_loss
 
 
 def validate(VAE, validation_loader, device):
     VAE.eval()
-    losses = []
-
+    mean_loss = 0
+    total = 0
     with torch.no_grad():
-        for batch_id, batchX in enumerate(train_loader):
+        for batch_id, batchX in enumerate(validation_loader):
             batchX = batchX.to(device)
             batchX_, mu, log_sigma = VAE(batchX)
-            loss = ELBOWLoss(batchX, batchX_, mu, log_sigma)
-            losses.append(loss.item())
+            loss = ELBOWLoss(batchX.view(-1,784), batchX_.view(-1,784), mu, log_sigma)
+            mean_loss += loss.item()
+            total += batchX.shape[0]
 
-            print("------ Validation batch " + str(batch_id) + " ------")
-            print("batch loss: " + str(loss))
-
-    return np.mean(losses)
+        mean_loss = mean_loss / total
+        print('Validation loss: {:.4f}'.format(mean_loss))
+    return mean_loss
 
 
 if __name__ == "__main__":
@@ -128,14 +134,25 @@ if __name__ == "__main__":
     VAE = VAE()
     VAE.to(device)
     optimizer = Adam(params=VAE.parameters(), lr=3*10**(-4))
-
-    for epoch in range(20):
-        print("----------------Epoch #" + str(epoch) + "----------------")
+    num_epochs = 20
+    trainLosses = []
+    validLosses = []
+    for epoch in range(num_epochs):
+        print("-------------- Epoch # " + str(epoch+1) + " --------------")
 
         trainLoss = train(VAE, train_loader, optimizer, device)
-        print("Epoch train loss" + str(trainLoss))
+        trainLosses.append(trainLoss)
+        print("Epoch train loss: {:.4f}".format(trainLoss))
 
         validationLoss = validate(VAE, valid_loader, device)
-        print("Epoch validation loss" + str(validationLoss))
+        validLosses.append(validationLoss)
 
         save_model(VAE, optimizer, epoch, trainLoss, validationLoss)
+
+    plt.plot(np.arange(num_epochs), trainLosses)
+    plt.plot(np.arange(num_epochs), validLosses)
+    plt.legend(["Training","Validation"])
+    plt.ylabel("ELBO Loss")
+    plt.xlabel("Epoch number")
+    plt.savefig("./results/VAE_training_20_epochs.png")
+    plt.show()

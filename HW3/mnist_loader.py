@@ -9,15 +9,20 @@ from torch.functional import F
 from torch.optim import Adam
 
 def get_data_loader(dataset_location, batch_size):
-    URL = "http://www.cs.toronto.edu/~larocheh/public/datasets/binarized_mnist/"
-    # start processing
+    splitdata = []
+    if not os.path.exists(dataset_location):
+        URL = "http://www.cs.toronto.edu/~larocheh/public/datasets/binarized_mnist/"
+        # start processing
+        for splitname in ["train", "valid", "test"]:
+            filename = "binarized_mnist_%s.amat" % splitname
+            filepath = os.path.join(dataset_location, filename)
+            utils.download_url(URL + filename, dataset_location,filename=filename, md5=None)
+
     def lines_to_np_array(lines):
         return np.array([[int(i) for i in line.split()] for line in lines])
-    splitdata = []
     for splitname in ["train", "valid", "test"]:
         filename = "binarized_mnist_%s.amat" % splitname
         filepath = os.path.join(dataset_location, filename)
-        utils.download_url(URL + filename, dataset_location)
         with open(filepath) as f:
             lines = f.readlines()
         x = lines_to_np_array(lines).astype('float32')
