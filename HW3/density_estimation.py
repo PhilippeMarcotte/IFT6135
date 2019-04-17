@@ -43,7 +43,7 @@ plt.show()
 
 #######--- INSERT YOUR CODE BELOW ---#######
 
-loss, D = training_loop(Losses.BCELoss2(), 0, distribution=4,learning_rate=0.001, num_epochs=20000)
+loss, D = training_loop(Losses.BCELoss2(), 0, distribution=4,learning_rate=0.01, num_epochs=15000)
 
 
 ############### plotting things
@@ -53,7 +53,7 @@ loss, D = training_loop(Losses.BCELoss2(), 0, distribution=4,learning_rate=0.001
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 input = (torch.tensor(xx).float().to(device)).view(1000,-1)
-r = D(input).cpu().detach().numpy() # evaluate xx using your discriminator; replace xx with the output
+r = torch.sigmoid(D(input)).cpu().detach().numpy() # evaluate xx using your discriminator; replace xx with the output
 plt.figure(figsize=(8,4))
 plt.subplot(1,2,1)
 plt.plot(xx,r)
@@ -68,7 +68,7 @@ estimate = p*(r/(1-r))#np.ones_like(xx)*0.2 # estimate the density of distributi
 plt.subplot(1,2,2)
 plt.plot(xx,estimate)
 plt.plot(f(torch.from_numpy(xx)).numpy(), d(torch.from_numpy(xx)).numpy()**(-1)*N(xx))
-plt.ylim((0,2))
+plt.ylim((0,4))
 plt.legend(['Estimated','True'])
 plt.title('Estimated vs True')
 plt.show()

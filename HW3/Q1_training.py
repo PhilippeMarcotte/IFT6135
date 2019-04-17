@@ -5,7 +5,7 @@ import samplers
 import discriminators
 import torch.nn.functional as F
 
-def training_loop(LossFct, x, distribution=1, learning_rate = 0.001, num_epochs = 5000):
+def training_loop(LossFct, x, distribution=1, learning_rate = 0.0001, num_epochs = 50000):
     # Device configuration
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -15,8 +15,8 @@ def training_loop(LossFct, x, distribution=1, learning_rate = 0.001, num_epochs 
         q_gen = samplers.distribution1(x)
         nb_input = 2
     elif distribution == 4:
-        p_gen = samplers.distribution3(512)
-        q_gen = samplers.distribution4(512)
+        q_gen = samplers.distribution3(2048)
+        p_gen = samplers.distribution4(2048)
         nb_input = 1
     p_gen.send(None)
     q_gen.send(None)
