@@ -32,25 +32,47 @@ img_shape = (3,32,32)
 
 cuda = True if torch.cuda.is_available() else False
 
+class Squeeze(nn.Module):
+    def __init__(self, *args):
+        super(Squeeze, self).__init__()
+        self.shape = args
+
+    def forward(self, x):
+        return x.squeeze()
+
+class Unsqueeze(nn.Module):
+    def __init__(self, *args):
+        super(Unsqueeze, self).__init__()
+        self.shape = args
+
+    def forward(self, x):
+        return x.view(-1, 256, 1, 1)
 
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
 
         self.gen=nn.Sequential(
-                nn.Linear(100,100),
-                nn.ReLU(True),
-                nn.Linear(100,256),
-                nn.ReLU(True),
-                nn.Linear(256,512),
-                nn.ReLU(True),
-                nn.Linear(512,1024)
+            nn.Linear(in_features=100, out_features=256),
+            Unsqueeze(),
+            nn.ELU(),
+            nn.Conv2d(256, 64, kernel_size=(5, 5), padding=(4,4)),
+            nn.ELU(),
+            nn.UpsamplingBilinear2d(scale_factor=2),
+            nn.Conv2d(64, 32, kernel_size=(3,3), padding=(2,2)),
+            nn.ELU(),
+            nn.UpsamplingBilinear2d(scale_factor=2),
+            nn.Conv2d(32, 16, kernel_size=(3,3), padding=(2,2)),
+            nn.ELU(),
+            nn.Conv2d(16, 1, kernel_size=(3,3), padding=(2,2)),
+            nn.Sigmoid()
                 
                 
                 )
 
     def forward(self, z):
         img = self.gen(z)
+        print(img.shape)
         img = img.view(img.shape[0], 3, 32,32)
         return img
 
@@ -60,13 +82,16 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         self.model = nn.Sequential(
-                nn.Linear(1024,512),
-                nn.ReLU(True),
-                nn.Linear(512,256),
-                nn.ReLU(True),
-                nn.Linear(256,100),
-                nn.ReLU(True),
-                nn.Linear(100,100),
+            nn.Conv2d(1, 32, kernel_size=(3, 3)),
+            nn.ELU(),
+            nn.AvgPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(32, 64, kernel_size=(3, 3)),
+            nn.ELU(),
+            nn.AvgPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(64, 256, kernel_size=(5, 5)),
+            nn.ELU(),
+            Squeeze(),
+            nn.Linear(in_features=256, out_features=100*2)
                 
         )
 
@@ -112,7 +137,7 @@ def get_data_loader(dataset_location, batch_size):
         trainset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=2
+        num_workers=0
     )
 
     validloader = torch.utils.data.DataLoader(
