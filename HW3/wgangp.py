@@ -62,9 +62,9 @@ class Generator(nn.Module):
             nn.Conv2d(64, 32, kernel_size=(3,3), padding=(2,2)),
             nn.ELU(),
             nn.UpsamplingBilinear2d(scale_factor=2),
-            nn.Conv2d(32, 16, kernel_size=(3,3), padding=(2,2)),
+            nn.Conv2d(32, 16, kernel_size=(3,3), padding=(3,3)),
             nn.ELU(),
-            nn.Conv2d(16, 1, kernel_size=(3,3), padding=(2,2)),
+            nn.Conv2d(16, 3, kernel_size=(3,3), padding=(3,3)),
             nn.Sigmoid()
                 
                 
@@ -72,7 +72,6 @@ class Generator(nn.Module):
 
     def forward(self, z):
         img = self.gen(z)
-        print(img.shape)
         img = img.view(img.shape[0], 3, 32,32)
         return img
 
@@ -81,23 +80,23 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
 
-        self.model = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=(3, 3)),
+        self.dis = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=(5, 5)),
             nn.ELU(),
             nn.AvgPool2d(kernel_size=2, stride=2),
-            nn.Conv2d(32, 64, kernel_size=(3, 3)),
+            nn.Conv2d(32, 64, kernel_size=(5, 5)),
             nn.ELU(),
             nn.AvgPool2d(kernel_size=2, stride=2),
             nn.Conv2d(64, 256, kernel_size=(5, 5)),
             nn.ELU(),
             Squeeze(),
-            nn.Linear(in_features=256, out_features=100*2)
+            nn.Linear(in_features=256, out_features=1)
                 
         )
 
     def forward(self, img):
-        img_flat = img.view(img.shape[0], -1)
-        validity = self.gen(img_flat)
+        #img_flat = img.view(img.shape[0], -1)
+        validity = self.dis(img)
         return validity
 
 
