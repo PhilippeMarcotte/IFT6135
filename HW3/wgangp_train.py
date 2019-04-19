@@ -4,36 +4,25 @@ Created on Thu Apr 18 17:40:14 2019
 
 @author: mikap
 """
-import wgangp 
-from wgangp import Squeeze
-from wgangp import Unsqueeze 
 from wgangp import Discriminator 
 from wgangp import Generator
 from wgangp import get_data_loader
 from wgangp import compute_gradient_penalty  
 
-import os
+
 import numpy as np
-import math
-import sys
 
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
 
 from torch.autograd import Variable
-from torch import nn
-import torch.nn.functional as F
-import torch.autograd as autograd
 import torch
-import torchvision.datasets
-from torch.utils.data import dataset
-# from torch.nn.modules import upsampling
-# from torch.functional import F
-from torch.optim import Adam
+
 
 # setup
 cuda = True if torch.cuda.is_available() else False
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 # Loss weight for gradient penalty
 lambda_gp = 10
@@ -43,32 +32,30 @@ generator = Generator()
 discriminator = Discriminator()
 
 if cuda:
-    generator.cuda()
-    discriminator.cuda()
+    generator.to(device)
+    discriminator.to(device)
 
 # Configure data loader
 image_transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((.5, .5, .5),
-                         (.5, .5, .5))
+    transforms.ToTensor()
 ])
     
 # Optimizers
-optimizer_G = torch.optim.Adam(generator.parameters(), lr=0.0002, betas=(0.5,0.999))
-optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
+optimizer_G = torch.optim.Adam(generator.parameters(), lr=0.0005, betas=(0.5,0.999))
+optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=0.0005, betas=(0.5, 0.999))
 
 # ----------
 #  Training
 # ----------
 n_epochs=50
-n_critic=5
+n_critic=3
 latent_dim=100
 sample_interval=400
-train, valid, test = get_data_loader("svhn", 32, image_transform)
+train, valid, test = get_data_loader("svhn", 256, image_transform)
 batches_done = 0
 for epoch in range(n_epochs):
     for i, (imgs, _) in enumerate(train):
-
+        imgs = imgs.to(device)
         # Configure input
         real_imgs = Variable(imgs.type(Tensor))
 
@@ -115,12 +102,17 @@ for epoch in range(n_epochs):
             g_loss.backward()
             optimizer_G.step()
 
-            print(
-                "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]"
-                % (epoch, n_epochs, i, len(train), d_loss.item(), g_loss.item())
-            )
             
             if batches_done % sample_interval == 0:
                 save_image(fake_imgs.data[:25], "images/%d.png" % batches_done, nrow=5, normalize=True)
 
             batches_done += n_critic
+
+        if (i+1) % 20 ==0: # prints only every 20 bathces
+            print(
+                "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]"
+                % (epoch, n_epochs, i, len(train), d_loss.item(), g_loss.item())
+            )
+
+torch.save(discriminator.state_dict(),"./models/discriminator.pth")
+torch.save(generator.state_dict(),"./models/generator.pth")

@@ -114,3 +114,15 @@ HW2/GRU_SGD_LR_SCHEDULE_0/exp_config\.txt
 HW2/best_params\.pt
 
 HW3/.idea/*
+
+HW3/models/*
+
+HW3/images/*
+
+HW3/svhn/*
+
+HW3/disentangled/*
+
+HW3/interpolations/*
+
+
