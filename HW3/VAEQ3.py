@@ -105,9 +105,7 @@ def KLDivergence(mu, log_sigma):
 
 # Configure data loader
 image_transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((.5, .5, .5),
-                         (.5, .5, .5))
+    transforms.ToTensor()
 ])
 
 def get_data_loader(dataset_location, batch_size):
@@ -195,12 +193,12 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         device = torch.device("cuda")
 
-    train_loader, valid_loader, test_loader = get_data_loader("svhn", 64)
+    train_loader, valid_loader, test_loader = get_data_loader("svhn", 256)
 
     VAE = VAE()
     VAE.to(device)
-    optimizer = Adam(params=VAE.parameters(), lr=0.002)
-    num_epochs = 20
+    optimizer = Adam(params=VAE.parameters(), lr=0.0001)
+    num_epochs = 50
     trainLosses = []
     validLosses = []
     for epoch in range(num_epochs):
@@ -217,7 +215,8 @@ if __name__ == "__main__":
         fake_imgs=decoder_fake(z)
         save_image(fake_imgs.data, "images_VAE/%d.png" % epoch,nrow=5, normalize=True)
 
-        save_model(VAE, optimizer, epoch, trainLoss, validationLoss)
+    save_model(VAE, optimizer, epoch, trainLoss, validationLoss)
+    torch.save(VAE.decoder, "decoderVAE.pt")
 
     plt.plot(np.arange(num_epochs), trainLosses)
     plt.plot(np.arange(num_epochs), validLosses)
