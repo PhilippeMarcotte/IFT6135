@@ -44,7 +44,11 @@ plt.show()
 #######--- INSERT YOUR CODE BELOW ---#######
 
 loss, D = training_loop(Losses.BCELoss2(), 0, distribution=4,learning_rate=0.01, num_epochs=15000)
+torch.save(D,"model.pt")
 
+# If using saved model
+# D = torch.load("./model.pt")
+# D.eval()
 
 ############### plotting things
 ############### (1) plot the output of your trained discriminator 
@@ -59,19 +63,18 @@ plt.subplot(1,2,1)
 plt.plot(xx,r)
 plt.title(r'$D(x)$')
 
-p_gen = samplers.distribution3(1000)
-p_gen.send(None)
-p = p_gen.send(1000)
 
-estimate = N(xx)*(r/(1-r))#np.ones_like(xx)*0.2 # estimate the density of distribution4 (on xx) using the discriminator;
+estimate = np.multiply(np.transpose(np.asmatrix(N(xx))),(r/(1-r)))#np.ones_like(xx)*0.2 # estimate the density of distribution4 (on xx) using the discriminator;
                                 # replace "np.ones_like(xx)*0." with your estimate
+
 plt.subplot(1,2,2)
-plt.plot(xx,estimate)
+plt.plot(xx,estimate,'ro')
 plt.plot(f(torch.from_numpy(xx)).numpy(), d(torch.from_numpy(xx)).numpy()**(-1)*N(xx))
-plt.ylim((0,2))
 plt.legend(['Estimated','True'])
 plt.title('Estimated vs True')
+plt.savefig("Q1.4.png")
 plt.show()
+
 
 
 
