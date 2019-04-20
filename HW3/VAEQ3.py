@@ -9,7 +9,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch import nn, cuda
+from torch import nn
 from torch.optim import Adam
 
 from Utils import save_model
@@ -27,6 +27,10 @@ from torch.utils.data import dataset
 # from torch.nn.modules import upsampling
 # from torch.functional import F
 
+#Setup
+cuda = True if torch.cuda.is_available() else False
+Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+os.makedirs("images_VAE", exist_ok=True)
 class Squeeze(nn.Module):
     def __init__(self, *args):
         super(Squeeze, self).__init__()
@@ -149,9 +153,6 @@ def train(VAE, train_loader, optimizer, device):
     total = 0
     total_step = len(train_loader)
     for batch_id, (batchX, _) in enumerate(train_loader):
-        print(type(batchX))
-        print(len(batchX))
-        print(batchX)
 
         batchX = batchX.to(device)
         optimizer.zero_grad()
@@ -191,14 +192,14 @@ def validate(VAE, validation_loader, device):
 if __name__ == "__main__":
 
     device = torch.device("cpu")
-    if cuda.is_available():
+    if torch.cuda.is_available():
         device = torch.device("cuda")
 
-    train_loader, valid_loader, test_loader = get_data_loader("svhn", 32)
+    train_loader, valid_loader, test_loader = get_data_loader("svhn", 64)
 
     VAE = VAE()
     VAE.to(device)
-    optimizer = Adam(params=VAE.parameters(), lr=3*10**(-4))
+    optimizer = Adam(params=VAE.parameters(), lr=0.002)
     num_epochs = 20
     trainLosses = []
     validLosses = []
@@ -211,6 +212,10 @@ if __name__ == "__main__":
 
         validationLoss = validate(VAE, valid_loader, device)
         validLosses.append(validationLoss)
+        decoder_fake=VAE.decoder
+        z = Variable(Tensor(np.random.normal(np.zeros(100),np.ones(100) , (25, 100))))
+        fake_imgs=decoder_fake(z)
+        save_image(fake_imgs.data, "images_VAE/%d.png" % epoch,nrow=5, normalize=True)
 
         save_model(VAE, optimizer, epoch, trainLoss, validationLoss)
 
