@@ -26,7 +26,7 @@ class Unsqueeze(nn.Module):
 
 class VAE(nn.Module):
     def __init__(self):
-        super(VAE, self).__init__()
+        super().__init__()
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=(3, 3)),
             nn.ELU(),
@@ -57,11 +57,15 @@ class VAE(nn.Module):
         )
 
     def forward(self, x):
+        log_sigma, mu, z = self.sample_latent_from(x)
+        return self.decoder(z), mu, log_sigma
+
+    def sample_latent_from(self, x):
         q_params = self.encoder(x)
         mu = q_params[:, 100:]
         log_sigma = q_params[:, :100]
         z = self.reparameterize(mu, log_sigma)
-        return self.decoder(z), mu, log_sigma
+        return log_sigma, mu, z
 
     def reparameterize(self, mu, log_sigma):
         sigma = torch.exp(log_sigma) + math.exp(-7)
@@ -69,6 +73,29 @@ class VAE(nn.Module):
         e = torch.randn_like(sigma)
         return mu + sigma * e
 
+    def importance_sampling(self, x, k):
+        Pis = []
+        for i in range(k):
+            log_sigma, mu, z = self.sample_latent_from(x)
+            x_ = self.decoder(z)
+            Pis.append(self.getPx_z(x_, x) + self.getPz(z) - self.getQz_x(z, mu, torch.exp(log_sigma)))
+
+        Pis = torch.stack(Pis).transpose(0, 1)
+        max,_ = torch.max(Pis, 1)
+        return max + torch.logsumexp(Pis - max.unsqueeze(1), 1) - np.log(k)
+
+    def getPz(self, z):
+        covar = torch.eye(100, 100).to(z.device)
+        mu = torch.zeros(100).to(z.device)
+        return torch.distributions.multivariate_normal.MultivariateNormal(mu, covar).log_prob(z)
+
+    def getQz_x(self, z, mu, sigma):
+        covar = torch.diag_embed(sigma.unsqueeze(1)).squeeze()
+        return torch.distributions.multivariate_normal.MultivariateNormal(mu, covar).log_prob(z)
+
+    def getPx_z(self, x_, x):
+        BCE = nn.BCELoss(reduction="none")
+        return -BCE(x_.view(-1, 784), x.view(-1, 784)).sum(1)
 
 def ELBOWLoss(x, x_, mu, log_sigma):
     KL = KLDivergence(mu, log_sigma)
@@ -79,7 +106,6 @@ def ELBOWLoss(x, x_, mu, log_sigma):
 
 def KLDivergence(mu, log_sigma):
     return -0.5 * torch.sum(1 + log_sigma - mu.pow(2) - log_sigma.exp())
-
 
 def train(VAE, train_loader, optimizer, device):
     VAE.train()
@@ -98,30 +124,36 @@ def train(VAE, train_loader, optimizer, device):
         mean_loss += loss.item()
         total += batchX.shape[0]
 
-        if (batch_id + 1) % 100 == 0:
+        """if (batch_id + 1) % 100 == 0:
             print('Step [{}/{}], Loss: {:.4f}({:.4f})'
-                  .format(batch_id + 1, total_step, loss.item()/batchX.shape[0], mean_loss / total))
+                  .format(batch_id + 1, total_step, loss.item()/batchX.shape[0], mean_loss / total))"""
 
     mean_loss = mean_loss / total
     return mean_loss
 
-
-def validate(VAE, validation_loader, device):
-    VAE.eval()
+def validate(model, validation_loader, device):
+    model.eval()
     mean_loss = 0
     total = 0
     with torch.no_grad():
         for batch_id, batchX in enumerate(validation_loader):
             batchX = batchX.to(device)
-            batchX_, mu, log_sigma = VAE(batchX)
+            batchX_, mu, log_sigma = model(batchX)
             loss = ELBOWLoss(batchX.view(-1,784), batchX_.view(-1,784), mu, log_sigma)
             mean_loss += loss.item()
             total += batchX.shape[0]
 
         mean_loss = mean_loss / total
-        print('Validation loss: {:.4f}'.format(mean_loss))
+        #print('Validation loss: {:.4f}'.format(mean_loss))
     return mean_loss
 
+def importance_sampling(model, data_loader, device):
+    model.eval()
+
+    with torch.no_grad():
+        for batch_id, batchX in enumerate(data_loader):
+            batchX = batchX.to(device)
+            model.importance_sampling(batchX, 200)
 
 if __name__ == "__main__":
 
@@ -131,23 +163,27 @@ if __name__ == "__main__":
 
     train_loader, valid_loader, test_loader = get_data_loader("binarized_mnist", 64)
 
-    VAE = VAE()
-    VAE.to(device)
-    optimizer = Adam(params=VAE.parameters(), lr=3*10**(-4))
+    model = VAE()
+    model.to(device)
+    optimizer = Adam(params=model.parameters(), lr=3 * 10 ** (-4))
     num_epochs = 20
     trainLosses = []
     validLosses = []
     for epoch in range(num_epochs):
         print("-------------- Epoch # " + str(epoch+1) + " --------------")
 
-        trainLoss = train(VAE, train_loader, optimizer, device)
+        trainLoss = train(model, train_loader, optimizer, device)
         trainLosses.append(trainLoss)
         print("Epoch train loss: {:.4f}".format(trainLoss))
 
-        validationLoss = validate(VAE, valid_loader, device)
+        validationLoss = validate(model, valid_loader, device)
         validLosses.append(validationLoss)
+        print("Epoch validation loss: {:.4f}".format(validationLoss))
 
-        save_model(VAE, optimizer, epoch, trainLoss, validationLoss)
+        save_model(model, optimizer, epoch, trainLoss, validationLoss)
+
+    caca = importance_sampling(model, test_loader, device)
+    print(caca)
 
     plt.plot(np.arange(num_epochs), trainLosses)
     plt.plot(np.arange(num_epochs), validLosses)
