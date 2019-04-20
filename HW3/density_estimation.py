@@ -63,12 +63,12 @@ p_gen = samplers.distribution3(1000)
 p_gen.send(None)
 p = p_gen.send(1000)
 
-estimate = p*(r/(1-r))#np.ones_like(xx)*0.2 # estimate the density of distribution4 (on xx) using the discriminator;
+estimate = N(xx)*(r/(1-r))#np.ones_like(xx)*0.2 # estimate the density of distribution4 (on xx) using the discriminator;
                                 # replace "np.ones_like(xx)*0." with your estimate
 plt.subplot(1,2,2)
 plt.plot(xx,estimate)
 plt.plot(f(torch.from_numpy(xx)).numpy(), d(torch.from_numpy(xx)).numpy()**(-1)*N(xx))
-plt.ylim((0,4))
+plt.ylim((0,2))
 plt.legend(['Estimated','True'])
 plt.title('Estimated vs True')
 plt.show()
