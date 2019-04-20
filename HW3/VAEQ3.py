@@ -148,15 +148,15 @@ def train(VAE, train_loader, optimizer, device):
     mean_loss = 0
     total = 0
     total_step = len(train_loader)
-    for batch_id, batchX in enumerate(train_loader):
+    for batch_id, (batchX, _) in enumerate(train_loader):
         print(type(batchX))
         print(len(batchX))
         print(batchX)
-        
+
         batchX = batchX.to(device)
         optimizer.zero_grad()
         batchX_, mu, log_sigma = VAE(batchX)
-        loss = ELBOWLoss(batchX.view(-1,1024), batchX_.view(-1,1024), mu, log_sigma)
+        loss = ELBOWLoss(batchX.view(-1,3,1024), batchX_.view(-1,3,1024), mu, log_sigma)
         loss.backward()
         losses.append(loss.item())
         optimizer.step()
@@ -176,10 +176,10 @@ def validate(VAE, validation_loader, device):
     mean_loss = 0
     total = 0
     with torch.no_grad():
-        for batch_id, batchX in enumerate(validation_loader):
+        for batch_id, (batchX, _) in enumerate(validation_loader):
             batchX = batchX.to(device)
             batchX_, mu, log_sigma = VAE(batchX)
-            loss = ELBOWLoss(batchX.view(-1,1024), batchX_.view(-1,1024), mu, log_sigma)
+            loss = ELBOWLoss(batchX.view(-1,3,1024), batchX_.view(-1,3,1024), mu, log_sigma)
             mean_loss += loss.item()
             total += batchX.shape[0]
 
