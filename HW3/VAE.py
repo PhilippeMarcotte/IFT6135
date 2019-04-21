@@ -7,6 +7,7 @@ from torch.optim import Adam
 
 from Utils import save_model
 from mnist_loader import get_data_loader
+from tqdm import tqdm
 
 class Squeeze(nn.Module):
     def __init__(self, *args):
@@ -154,9 +155,9 @@ def importance_sampling(model, data_loader, device):
         importance_samples = []
         for batch_id, batchX in enumerate(data_loader):
             batchX = batchX.to(device)
-            importance_samples.append(model.importance_sampling(batchX, 200))
+            approximate_per_batch.append(torch.mean(model.importance_sampling(batchX, 200)))
 
-    return torch.cat(importance_samples).mean()
+        return torch.mean(torch.stack(approximate_per_batch))
 
 if __name__ == "__main__":
 
@@ -172,6 +173,7 @@ if __name__ == "__main__":
     num_epochs = 20
     trainLosses = []
     validLosses = []
+    caca = importance_sampling(model, test_loader, device)
     for epoch in range(num_epochs):
         print("-------------- Epoch # " + str(epoch+1) + " --------------")
 
