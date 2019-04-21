@@ -151,9 +151,12 @@ def importance_sampling(model, data_loader, device):
     model.eval()
 
     with torch.no_grad():
+        importance_samples = []
         for batch_id, batchX in enumerate(data_loader):
             batchX = batchX.to(device)
-            model.importance_sampling(batchX, 200)
+            importance_samples.append(model.importance_sampling(batchX, 200))
+
+    return torch.cat(importance_samples).mean()
 
 if __name__ == "__main__":
 
@@ -182,8 +185,8 @@ if __name__ == "__main__":
 
         save_model(model, optimizer, epoch, trainLoss, validationLoss)
 
-    caca = importance_sampling(model, test_loader, device)
-    print(caca)
+    imp_sampling_mean = importance_sampling(model, test_loader, device)
+    print(imp_sampling_mean)
 
     plt.plot(np.arange(num_epochs), trainLosses)
     plt.plot(np.arange(num_epochs), validLosses)
