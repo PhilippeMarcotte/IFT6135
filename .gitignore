@@ -124,7 +124,7 @@ HW3/images_VAE/*
 HW3/interpolations/*
 HW2/RNN_ADAM_model=RNN_optimizer=ADAM_initial_lr=0\.0001_batch_size=20_seq_len=35_hidden_size=1500_num_layers=2_dp_keep_prob=0\.35_save_best_0/exp_config\.txt
 
-HW2/GRU_SGD_LR_SCHEDULE_1/exp_config\.txt
+
 
 HW2/GRU_SGD_LR_SCHEDULE_0/exp_config\.txt
 
@@ -149,3 +149,4 @@ HW3/Q3 Qualitative/svhn/*
 HW3/Q3 Quantitative/svhn/*
 
 HW3/Q3 Quantitative/fid/*
+HW2/GRU_SGD_LR_SCHEDULE_1/exp_config\.txt
