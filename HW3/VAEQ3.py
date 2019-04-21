@@ -103,12 +103,8 @@ def ELBOWLoss(x, x_, mu, log_sigma):
 def KLDivergence(mu, log_sigma):
     return -0.5 * torch.sum(1 + log_sigma - mu.pow(2) - log_sigma.exp())
 
-# Configure data loader
-image_transform = transforms.Compose([
-    transforms.ToTensor()
-])
 
-def get_data_loader(dataset_location, batch_size):
+def get_data_loader(dataset_location, batch_size, image_transform):
     trainvalid = torchvision.datasets.SVHN(
         dataset_location, split='train',
         download=True,
@@ -185,43 +181,3 @@ def validate(VAE, validation_loader, device):
         mean_loss = mean_loss / total
         print('Validation loss: {:.4f}'.format(mean_loss))
     return mean_loss
-
-
-if __name__ == "__main__":
-
-    device = torch.device("cpu")
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-
-    train_loader, valid_loader, test_loader = get_data_loader("svhn", 256)
-
-    VAE = VAE()
-    VAE.to(device)
-    optimizer = Adam(params=VAE.parameters(), lr=0.0001)
-    num_epochs = 50
-    trainLosses = []
-    validLosses = []
-    for epoch in range(num_epochs):
-        print("-------------- Epoch # " + str(epoch+1) + " --------------")
-
-        trainLoss = train(VAE, train_loader, optimizer, device)
-        trainLosses.append(trainLoss)
-        print("Epoch train loss: {:.4f}".format(trainLoss))
-
-        validationLoss = validate(VAE, valid_loader, device)
-        validLosses.append(validationLoss)
-        decoder_fake=VAE.decoder
-        z = Variable(Tensor(np.random.normal(np.zeros(100),np.ones(100) , (25, 100))))
-        fake_imgs=decoder_fake(z)
-        save_image(fake_imgs.data, "images_VAE/%d.png" % epoch,nrow=5, normalize=True)
-
-    save_model(VAE, optimizer, epoch, trainLoss, validationLoss)
-    torch.save(VAE.decoder, "decoderVAE.pt")
-
-    plt.plot(np.arange(num_epochs), trainLosses)
-    plt.plot(np.arange(num_epochs), validLosses)
-    plt.legend(["Training","Validation"])
-    plt.ylabel("ELBO Loss")
-    plt.xlabel("Epoch number")
-    plt.savefig("./results/VAE_training_20_epochs.png")
-    plt.show()
