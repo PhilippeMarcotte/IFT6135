@@ -11,7 +11,7 @@ from torchvision.utils import save_image
 cuda = True if torch.cuda.is_available() else False
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-np.random.seed(4)
+np.random.seed(11)
 
 # load models
 Generator = Generator()
@@ -33,9 +33,9 @@ plt.imshow(im.transpose((1,2,0)))
 plt.show()
 ####################
 # noise
-eps = 10
+eps = 5
 index = 10
-for index in range(1000):
+for index in range(100):
     noise = np.zeros(100)
     noise[index] = eps
     noise = Tensor(noise)
@@ -43,9 +43,9 @@ for index in range(1000):
     im = Generator(z+noise)
     save_image(F.upsample(im,scale_factor=6),"./disentangled/GAN/image_%d.png" % index, normalize=True)
 
-    # # Genera 1k images
+    # Genera 1k images
     # np.random.seed(index)
     # z = Variable(Tensor(np.random.normal(0, 1, (batch_size, latent_dim)))).to(device)
     #
     # im = Generator(z)
-    # save_image(im, "./fid/GAN/image_%d.png" % index, normalize=True)
+    # save_image(im, "./fid/GAN/image_%d.png" % index)
