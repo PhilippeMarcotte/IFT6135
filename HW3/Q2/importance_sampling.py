@@ -1,5 +1,5 @@
-from HW3.Q2.VAE import importance_sampling, VAE
-from HW3.Q2.mnist_loader import get_data_loader
+from VAE import importance_sampling, VAE
+from mnist_loader import get_data_loader
 import torch
 import numpy as np
 
