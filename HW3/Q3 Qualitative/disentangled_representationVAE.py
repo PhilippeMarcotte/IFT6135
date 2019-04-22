@@ -43,7 +43,8 @@ for index in range(100):
     im = Generator(z + noise)
     save_image(F.upsample(im, scale_factor=6), "./disentangled/VAE/image_%d.png" % index, normalize=True)
 
+    # # Generate 1k images for fid
     # np.random.seed(index)
     # z = Variable(Tensor(np.random.normal(0, 1, (batch_size, latent_dim)))).to(device)
     # im = Generator(z)
-    # save_image(im, "./fid/VAE/fake/image_%d.png" % index)
+    # save_image(im, "../Q3 Quantitative/fid/VAE/fake/image_%d.png" % index,  normalize=True)
