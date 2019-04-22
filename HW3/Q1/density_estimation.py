@@ -16,7 +16,7 @@ import samplers
 import discriminators
 import distances
 import torch.nn.functional as F
-from Q1_training import training_loop
+from Q1.Q1_training import training_loop
 import Losses
 
 
