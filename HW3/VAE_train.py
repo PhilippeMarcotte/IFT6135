@@ -63,7 +63,7 @@ for epoch in range(num_epochs):
     save_image(fake_imgs.data, "images_VAE/%d.png" % epoch,nrow=5, normalize=True)
 
 save_model(VAE, optimizer, epoch, trainLoss, validationLoss)
-torch.save(VAE, "decoderVAE.pth")
+torch.save(VAE.state_dict(), "decoderVAE.pth")
 
 plt.plot(np.arange(num_epochs), trainLosses)
 plt.plot(np.arange(num_epochs), validLosses)
