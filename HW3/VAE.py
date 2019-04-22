@@ -69,20 +69,21 @@ class VAE(nn.Module):
         return log_sigma, mu, z
 
     def reparameterize(self, mu, log_sigma, n_samples=1):
-        sigma = torch.exp(log_sigma) + math.exp(-7)
-        sigmas = sigma.unsqueeze(1).expand(-1, n_samples, -1)
+        std = torch.exp(0.5*log_sigma)
+        std = std.unsqueeze(1).expand(-1, n_samples, -1)
         mus = mu.unsqueeze(1).expand(-1, n_samples, -1)
 
-        e = torch.randn((sigma.shape[0], n_samples, sigma.shape[1])).to(sigma.device)
-        return (mus + e * sigmas).squeeze()
+        e = torch.randn((log_sigma.shape[0], n_samples, log_sigma.shape[1])).to(log_sigma.device)
+        return (mus + e * std).squeeze()
 
     def importance_sampling(self, x, k):
         log_sigma, mu, z = self.sample_latent_from(x, n_samples=k)
-        log_sigma = log_sigma.unsqueeze(1).expand(-1, k, -1)
+        sigma = torch.exp(log_sigma) + math.exp(-7)
+        sigma = sigma.unsqueeze(1).expand(-1, k, -1)
         mu = mu.unsqueeze(1).expand(-1, k, -1)
         x_ = self.decoder(z.view(-1, z.shape[-1])).view(-1, k, *x.shape[-3:])
         P = self.getPx_z(x_, x.unsqueeze(1).expand(-1, k, *x.shape[-3:])) \
-            + self.getPz(z) - self.getQz_x(z, mu, torch.exp(log_sigma))
+            + self.getPz(z) - self.getQz_x(z, mu, sigma)
 
         max, _ = torch.max(P, 1)
         return max + torch.logsumexp(P - max.unsqueeze(1), 1) - np.log(k)
@@ -128,9 +129,9 @@ def train(VAE, train_loader, optimizer, device):
         mean_loss += loss.item()
         total += batchX.shape[0]
 
-        """if (batch_id + 1) % 100 == 0:
+        if (batch_id + 1) % 100 == 0:
             print('Step [{}/{}], Loss: {:.4f}({:.4f})'
-                  .format(batch_id + 1, total_step, loss.item()/batchX.shape[0], mean_loss / total))"""
+                  .format(batch_id + 1, total_step, loss.item()/batchX.shape[0], mean_loss / total))
 
     mean_loss = mean_loss / total
     return mean_loss
@@ -183,6 +184,7 @@ if __name__ == "__main__":
     num_epochs = 20
     trainLosses = []
     validLosses = []
+    imp_sampling_mean = importance_sampling(model, test_loader, device)
     for epoch in range(checkpoint["epoch"] if checkpoint else 0, num_epochs):
         print("-------------- Epoch # " + str(epoch+1) + " --------------")
 
