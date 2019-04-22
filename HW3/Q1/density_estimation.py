@@ -14,7 +14,6 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 import samplers
 import discriminators
-import distances
 import torch.nn.functional as F
 from Q1.Q1_training import training_loop
 import Losses
