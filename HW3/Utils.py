@@ -10,5 +10,6 @@ def save_model(model, optimizer, epoch, trainingLoss, validationLoss):
         'validationLoss': validationLoss,
     }, "checkpoint.pth")
 
+
 def load_model():
     return torch.load("checkpoint.pth")
