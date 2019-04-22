@@ -5,8 +5,8 @@ import torch
 from torch import nn, cuda
 from torch.optim import Adam
 
-from HW3.Utils import save_model
-from HW3.Q2.mnist_loader import get_data_loader
+from Utils import save_model
+from mnist_loader import get_data_loader
 from tqdm import tqdm
 
 
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     num_epochs = 20
     trainLosses = []
     validLosses = []
-    for epoch in range(checkpoint["epoch"] if checkpoint else 0, num_epochs):
+    for epoch in range(checkpoint["epoch"] if checkpoint else 0, 2):
         print("-------------- Epoch # " + str(epoch + 1) + " --------------")
 
         trainLoss = train(model, train_loader, optimizer, device)
@@ -203,7 +203,8 @@ if __name__ == "__main__":
         validLosses.append(validationLoss)
         print("Epoch validation loss: {:.4f}".format(validationLoss))
 
-        save_model(model, optimizer, epoch, trainLoss, validationLoss)
+#        save_model(model, optimizer, epoch, trainLoss, validationLoss)
+    importance_sampling(model, test_loader, device)
 
     plt.plot(np.arange(num_epochs), trainLosses)
     plt.plot(np.arange(num_epochs), validLosses)
