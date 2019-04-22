@@ -134,26 +134,15 @@ HW3/.idea/*
 
 HW3/fid/*
 
-HW3/models/*
-
-
-
-
-HW3/Q3 Qualitative/disentangled/*
-HW3/Q3 Qualitative/interpolations/*
-
-HW3/Q3 Qualitative/models/*
-
 HW3/Q3 Qualitative/images/*
 
 HW3/Q3 Qualitative/svhn/*
 
 HW3/Q3 Quantitative/svhn/*
 
-<<<<<<< master
+
 HW3/Q3 Quantitative/fid/*
-HW2/GRU_SGD_LR_SCHEDULE_1/exp_config\.txt
-=======
+
 HW3/fid/*
 
 HW3/images_VAE/*
@@ -170,11 +159,6 @@ HW2/best_params\.pt
 
 HW3/.idea/*
 
-HW3/Q3 Qualitative/disentangled/*
-
-HW3/Q3 Qualitative/interpolations/*
-
-HW3/Q3 Qualitative/models/*
 
 HW3/Q3 Qualitative/images/*
 
@@ -182,4 +166,3 @@ HW3/Q3 Qualitative/svhn/*
 
 HW3/Q3 Quantitative/svhn/*
 
->>>>>>> FID calculator with sample images from fid folder
