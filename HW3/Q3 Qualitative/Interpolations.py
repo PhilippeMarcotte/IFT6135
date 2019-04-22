@@ -11,7 +11,7 @@ from torchvision.utils import save_image
 cuda = True if torch.cuda.is_available() else False
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-np.random.seed(4)
+np.random.seed(11)
 
 # load models
 Generator = Generator()
@@ -25,7 +25,7 @@ batch_size = 1
 z1 = Variable(Tensor(np.random.normal(0, 1, (batch_size, latent_dim)))).to(device)
 
 ###################################
-np.random.seed(32) #0, 3, 13, 32, 36
+np.random.seed(71)
 ###################################
 
 z2 = Variable(Tensor(np.random.normal(0, 1, (batch_size, latent_dim)))).to(device)

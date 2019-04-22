@@ -43,9 +43,9 @@ for index in range(100):
     im = Generator(z+noise)
     save_image(F.upsample(im,scale_factor=6),"./disentangled/GAN/image_%d.png" % index, normalize=True)
 
-    # Genera 1k images
+    # #Generate 1k images
     # np.random.seed(index)
     # z = Variable(Tensor(np.random.normal(0, 1, (batch_size, latent_dim)))).to(device)
     #
     # im = Generator(z)
-    # save_image(im, "./fid/GAN/image_%d.png" % index)
+    # save_image(im, "./fid/GAN/image_%d.png" % index, normalize=True)
