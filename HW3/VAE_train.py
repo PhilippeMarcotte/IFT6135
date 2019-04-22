@@ -36,7 +36,9 @@ Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
 # Configure data loader
 image_transform = transforms.Compose([
-    transforms.ToTensor()
+    transforms.ToTensor(),
+    transforms.Normalize((.5, .5, .5),
+                         (.5, .5, .5))
 ])
 train_loader, valid_loader, test_loader = get_data_loader("svhn", 256, image_transform)
 
@@ -61,7 +63,7 @@ for epoch in range(num_epochs):
     save_image(fake_imgs.data, "images_VAE/%d.png" % epoch,nrow=5, normalize=True)
 
 save_model(VAE, optimizer, epoch, trainLoss, validationLoss)
-torch.save(VAE.state_dict(), "decoderVAE.pth")
+torch.save(VAE, "decoderVAE.pth")
 
 plt.plot(np.arange(num_epochs), trainLosses)
 plt.plot(np.arange(num_epochs), validLosses)

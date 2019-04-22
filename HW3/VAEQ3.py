@@ -76,7 +76,7 @@ class VAE(nn.Module):
             nn.Conv2d(32, 16, kernel_size=(3,3), padding=(3,3)),
             nn.ELU(),
             nn.Conv2d(16, 3, kernel_size=(3,3), padding=(3,3)),
-            nn.Sigmoid()
+            nn.Tanh()
         )
 
     def forward(self, x):
@@ -87,7 +87,7 @@ class VAE(nn.Module):
         return self.decoder(z), mu, log_sigma
 
     def reparameterize(self, mu, log_sigma):
-        sigma = torch.exp(log_sigma) + math.exp(-7)
+        sigma = torch.exp(0.5*log_sigma) + math.exp(-7)
 
         e = torch.randn_like(sigma)
         return mu + sigma * e
@@ -96,8 +96,8 @@ class VAE(nn.Module):
 def ELBOWLoss(x, x_, mu, log_sigma):
     KL = KLDivergence(mu, log_sigma)
 
-    BCE = nn.BCELoss(reduction="sum")
-    logpx_z = BCE(x_, x)
+    MSE = nn.MSELoss(reduction="sum")
+    logpx_z = MSE(x_, x)
     return (logpx_z + KL) #batch mean loss computed in BCE
 
 def KLDivergence(mu, log_sigma):
