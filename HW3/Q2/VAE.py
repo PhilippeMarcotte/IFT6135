@@ -192,7 +192,7 @@ if __name__ == "__main__":
     num_epochs = 20
     trainLosses = []
     validLosses = []
-    for epoch in range(checkpoint["epoch"] if checkpoint else 0, 2):
+    for epoch in range(checkpoint["epoch"] if checkpoint else 0, num_epochs):
         print("-------------- Epoch # " + str(epoch + 1) + " --------------")
 
         trainLoss = train(model, train_loader, optimizer, device)
