@@ -17,7 +17,7 @@ model = model.to(device)
 train_loader, valid_loader, test_loader = get_data_loader("binarized_mnist", 64)
 
 valid_lle = importance_sampling(model, valid_loader, device)
-print(valid_lle)
+print("Validation Log-likelihood estimation: {}".format(valid_lle))
 
 test_lle = importance_sampling(model, test_loader, device)
-print(test_lle)
+print("Test Log-likelihood estimation: {}".format(test_lle))
